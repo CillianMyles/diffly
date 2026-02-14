@@ -82,3 +82,26 @@ jobs:
 
       - name: Run Rust conformance runner
         run: make test-spec-rust
+
+      - name: Run Rust CLI smoke test
+        run: |
+          make diff-rust \
+            A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
+            B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
+            KEY=id > /tmp/diffly-rust-smoke.jsonl
+
+      - name: Verify Rust smoke output has schema and stats
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-rust-smoke.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert lines, "Rust smoke output is empty"
+          assert lines[0].get("type") == "schema", "First event must be schema"
+          assert lines[-1].get("type") == "stats", "Last event must be stats"
+          PY

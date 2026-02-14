@@ -388,6 +388,7 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - `python -m compileall diffly-python`
 - a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
 - Rust fmt check + `cargo test` + Rust fixture conformance (`make test-spec-rust`)
+- Rust CLI smoke test via `make diff-rust ...`
 
 ### Project memory
 

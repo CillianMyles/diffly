@@ -35,6 +35,7 @@ Last updated: 2026-02-14
 - Added native Rust CLI surface (`diffly-rust/diffly-cli`) + `make diff-rust`
 - Added fixture for whitespace-only key values (`keyed_whitespace_key_is_value`)
 - Added `diffly-rust/diffly-engine` as runtime boundary and switched Rust CLI to use it
+- Added Rust CLI smoke validation to CI
 
 ## In Progress
 
