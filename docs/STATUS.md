@@ -29,6 +29,7 @@ Last updated: 2026-02-14
   - `diffly-rust/diffly-conformance` runs shared fixture suite
 - Added UTF-8 BOM header normalization and fixture coverage (`keyed_utf8_bom_header`)
 - Added Rust unit tests for core error modes and deterministic event ordering
+- Added `make diff` composite-key ergonomics via `KEYS=id,region`
 
 ## In Progress
 
@@ -37,8 +38,7 @@ Last updated: 2026-02-14
 ## Next
 
 1. Add more parser edge-case fixtures beyond BOM.
-2. Improve CLI ergonomics for composite keys in `make` workflow.
-3. Keep CI fast while adding checks incrementally.
+2. Keep CI fast while adding checks incrementally.
 
 ## Blockers
 

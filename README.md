@@ -338,6 +338,12 @@ You can already run a keyed diff locally using the Python reference implementati
 make diff A=path/to/a.csv B=path/to/b.csv KEY=id
 ```
 
+Composite keys are also supported via `make`:
+
+```bash
+make diff A=a.csv B=b.csv KEYS=id,region
+```
+
 For sorted-header comparison mode:
 
 ```bash
