@@ -54,6 +54,30 @@ impl Default for EngineRunConfig {
     }
 }
 
+pub fn stable_key_hash(key_parts: &[String]) -> u64 {
+    const FNV_OFFSET_BASIS: u64 = 14_695_981_039_346_656_037;
+    const FNV_PRIME: u64 = 1_099_511_628_211;
+    const KEY_DELIMITER: u8 = 0x1f;
+
+    let mut hash = FNV_OFFSET_BASIS;
+    for (idx, part) in key_parts.iter().enumerate() {
+        for byte in part.as_bytes() {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        if idx + 1 < key_parts.len() {
+            hash ^= u64::from(KEY_DELIMITER);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+    }
+    hash
+}
+
+pub fn partition_for_key(key_parts: &[String], partitions: usize) -> usize {
+    let total_partitions = partitions.max(1);
+    (stable_key_hash(key_parts) % total_partitions as u64) as usize
+}
+
 fn emit_progress(
     sink: &mut dyn EventSink,
     events_done: usize,
@@ -200,5 +224,12 @@ mod tests {
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn stable_key_hash_is_deterministic() {
+        let key = vec!["123".to_string(), "eu".to_string()];
+        assert_eq!(stable_key_hash(&key), 9_476_362_503_708_207_610);
+        assert_eq!(partition_for_key(&key, 256), 250);
     }
 }

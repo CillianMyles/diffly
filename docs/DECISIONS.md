@@ -78,6 +78,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: enables UX/progress work without breaking existing fixture expectations for default event streams.
 
+### D-013 Partition hash stability
+
+- Decision: use stable FNV-1a (64-bit) hashing of UTF-8 key parts with delimiter byte `0x1f` for partition assignment.
+- Status: active.
+- Rationale: deterministic partition mapping across runs/platforms is required before out-of-core partitioned execution.
+
 ## Update Protocol
 
 When a new decision is made:

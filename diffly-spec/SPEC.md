@@ -60,6 +60,10 @@ To keep fixtures deterministic:
   - `strict`: A header order
   - `sorted`: sorted column names
 
+Future out-of-core partitioning note:
+
+- Stable key hashing uses FNV-1a (64-bit) over UTF-8 key parts joined by delimiter byte `0x1f`.
+
 ## Event Stream
 
 Event stream is JSONL.
