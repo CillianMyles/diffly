@@ -26,6 +26,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - runtime opt-in path exposed via `EngineRunConfig.partition_count` and CLI `--partitions`
   - CI includes partitioned CLI smoke coverage
   - conformance runner can execute engine path via `DIFFLY_ENGINE_PARTITIONS` (`make test-spec-rust-engine`)
+  - partitioned engine now emits globally key-sorted events and passes fixtures at `PARTITIONS=4`
 
 ## Quick Resume Checklist
 

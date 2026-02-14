@@ -581,6 +581,7 @@ pub fn diff_partitioned_from_manifest(
     options: &DiffOptions,
 ) -> Result<Vec<Value>, EngineError> {
     let mut events: Vec<Value> = Vec::new();
+    let mut keyed_events: Vec<(Vec<String>, Value)> = Vec::new();
     events.push(json!({
         "type": "schema",
         "columns_a": &manifest.columns_a,
@@ -622,19 +623,25 @@ pub fn diff_partitioned_from_manifest(
             match (in_a, in_b) {
                 (None, Some(record_b)) => {
                     rows_added += 1;
-                    events.push(json!({
-                        "type": "added",
-                        "key": key_obj,
-                        "row": row_to_value(&record_b.row)
-                    }));
+                    keyed_events.push((
+                        key.clone(),
+                        json!({
+                            "type": "added",
+                            "key": key_obj,
+                            "row": row_to_value(&record_b.row)
+                        }),
+                    ));
                 }
                 (Some(record_a), None) => {
                     rows_removed += 1;
-                    events.push(json!({
-                        "type": "removed",
-                        "key": key_obj,
-                        "row": row_to_value(&record_a.row)
-                    }));
+                    keyed_events.push((
+                        key.clone(),
+                        json!({
+                            "type": "removed",
+                            "key": key_obj,
+                            "row": row_to_value(&record_a.row)
+                        }),
+                    ));
                 }
                 (Some(record_a), Some(record_b)) => {
                     rows_total_compared += 1;
@@ -648,11 +655,14 @@ pub fn diff_partitioned_from_manifest(
                     if changed_columns.is_empty() {
                         rows_unchanged += 1;
                         if options.emit_unchanged {
-                            events.push(json!({
-                                "type": "unchanged",
-                                "key": key_obj,
-                                "row": row_to_value(&record_a.row)
-                            }));
+                            keyed_events.push((
+                                key.clone(),
+                                json!({
+                                    "type": "unchanged",
+                                    "key": key_obj,
+                                    "row": row_to_value(&record_a.row)
+                                }),
+                            ));
                         }
                     } else {
                         rows_changed += 1;
@@ -667,20 +677,26 @@ pub fn diff_partitioned_from_manifest(
                             );
                         }
 
-                        events.push(json!({
-                            "type": "changed",
-                            "key": key_obj,
-                            "changed": changed_columns,
-                            "before": row_to_value(&record_a.row),
-                            "after": row_to_value(&record_b.row),
-                            "delta": Value::Object(delta)
-                        }));
+                        keyed_events.push((
+                            key.clone(),
+                            json!({
+                                "type": "changed",
+                                "key": key_obj,
+                                "changed": changed_columns,
+                                "before": row_to_value(&record_a.row),
+                                "after": row_to_value(&record_b.row),
+                                "delta": Value::Object(delta)
+                            }),
+                        ));
                     }
                 }
                 (None, None) => {}
             }
         }
     }
+
+    keyed_events.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
+    events.extend(keyed_events.into_iter().map(|(_, event)| event));
 
     events.push(json!({
         "type": "stats",
@@ -980,7 +996,7 @@ mod tests {
     }
 
     #[test]
-    fn run_keyed_partition_mode_can_match_default_when_single_partition() {
+    fn run_keyed_partition_mode_matches_default_with_multiple_partitions() {
         let a = write_csv("run-partitioned-a", "id,name\n2,Bob\n1,Alice\n");
         let b = write_csv("run-partitioned-b", "id,name\n1,Alicia\n3,Cara\n");
 
@@ -1001,7 +1017,7 @@ mod tests {
             &b,
             &default_options(),
             &EngineRunConfig {
-                partition_count: Some(1),
+                partition_count: Some(4),
                 ..EngineRunConfig::default()
             },
             &NeverCancel,

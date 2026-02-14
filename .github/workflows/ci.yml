@@ -83,8 +83,8 @@ jobs:
       - name: Run Rust conformance runner
         run: make test-spec-rust
 
-      - name: Run Rust engine conformance runner (single partition parity)
-        run: make test-spec-rust-engine PARTITIONS=1
+      - name: Run Rust engine conformance runner (multi-partition parity)
+        run: make test-spec-rust-engine PARTITIONS=4
 
       - name: Run Rust CLI smoke test
         run: |

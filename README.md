@@ -372,7 +372,7 @@ Run Rust parity checks with:
 
 ```bash
 make test-spec-rust
-make test-spec-rust-engine PARTITIONS=1
+make test-spec-rust-engine PARTITIONS=4
 ```
 
 Run the native Rust CLI via:
@@ -401,7 +401,7 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - `python -m compileall diffly-python`
 - a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
 - Rust fmt check + `cargo test` + Rust fixture conformance (`make test-spec-rust`)
-- Rust engine conformance parity mode (`make test-spec-rust-engine PARTITIONS=1`)
+- Rust engine conformance parity mode (`make test-spec-rust-engine PARTITIONS=4`)
 - Rust CLI smoke test via `make diff-rust ...`
 - Rust partitioned CLI smoke test via `make diff-rust ... PARTITIONS=4`
 

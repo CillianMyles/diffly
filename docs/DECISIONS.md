@@ -102,11 +102,11 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: preserves source row references needed for duplicate-key diagnostics and partition-local join semantics.
 
-### D-017 Partition-local event ordering (intermediate)
+### D-017 Partitioned event ordering
 
-- Decision: partition-local diff execution currently emits events in ascending `partition_id`, with keys sorted within each partition.
-- Status: active (intermediate, may change before stabilization).
-- Rationale: deterministic now; global key ordering across partitions can be revisited when fully switching runtime paths.
+- Decision: partitioned execution emits row events in global key-sorted order (not partition bucket order).
+- Status: active.
+- Rationale: preserves fixture/conformance ordering parity while partition internals remain implementation detail.
 
 ### D-018 Partitioned runtime rollout mode
 
@@ -116,9 +116,9 @@ This file records active product/engineering decisions that affect implementatio
 
 ### D-019 Engine conformance gating
 
-- Decision: add conformance coverage for the engine path using a single-partition mode (`DIFFLY_ENGINE_PARTITIONS=1`) while default conformance still targets `diffly-core`.
+- Decision: add conformance coverage for the engine path using multi-partition mode (`DIFFLY_ENGINE_PARTITIONS=4`) while default conformance still targets `diffly-core`.
 - Status: active.
-- Rationale: validates engine wiring/behavior against fixtures with deterministic ordering parity before broader rollout.
+- Rationale: validates engine wiring/behavior against fixtures across real partitioning paths before broader rollout.
 
 ## Update Protocol
 
