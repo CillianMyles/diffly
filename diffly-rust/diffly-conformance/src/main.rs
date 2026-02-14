@@ -2,6 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use diffly_core::{diff_csv_files, DiffError, DiffOptions, HeaderMode};
+use diffly_engine::{
+    run_keyed_to_sink_with_config, EngineError, EngineRunConfig, EventSink, NeverCancel,
+};
 use serde_json::Value;
 
 fn load_jsonl(path: &Path) -> Result<Vec<Value>, String> {
@@ -50,7 +53,76 @@ fn parse_options(config: &Value) -> Result<DiffOptions, DiffError> {
     })
 }
 
-fn run_case(case_dir: &Path) -> (bool, String) {
+struct CollectSink {
+    events: Vec<Value>,
+}
+
+impl EventSink for CollectSink {
+    fn on_event(&mut self, event: &Value) -> Result<(), String> {
+        self.events.push(event.clone());
+        Ok(())
+    }
+}
+
+fn parse_partition_count_env() -> Result<Option<usize>, String> {
+    let raw = match std::env::var("DIFFLY_ENGINE_PARTITIONS") {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    let parsed = trimmed.parse::<usize>().map_err(|_| {
+        format!("DIFFLY_ENGINE_PARTITIONS must be a positive integer, got '{trimmed}'")
+    })?;
+    if parsed == 0 {
+        return Err("DIFFLY_ENGINE_PARTITIONS must be greater than zero".to_string());
+    }
+    Ok(Some(parsed))
+}
+
+fn run_diff(
+    a_path: &Path,
+    b_path: &Path,
+    options: &DiffOptions,
+    partition_count: Option<usize>,
+) -> Result<Vec<Value>, DiffError> {
+    match partition_count {
+        None => diff_csv_files(a_path, b_path, options),
+        Some(partitions) => {
+            let mut sink = CollectSink { events: Vec::new() };
+            let run_config = EngineRunConfig {
+                partition_count: Some(partitions),
+                ..EngineRunConfig::default()
+            };
+            match run_keyed_to_sink_with_config(
+                a_path,
+                b_path,
+                options,
+                &run_config,
+                &NeverCancel,
+                &mut sink,
+            ) {
+                Ok(()) => Ok(sink.events),
+                Err(EngineError::Diff(err)) => Err(err),
+                Err(EngineError::Cancelled) => {
+                    Err(DiffError::new("cancelled", "Operation cancelled"))
+                }
+                Err(EngineError::Sink(message)) => Err(DiffError::new(
+                    "sink_error",
+                    format!("Engine sink failed: {message}"),
+                )),
+                Err(EngineError::Storage(message)) => Err(DiffError::new(
+                    "storage_error",
+                    format!("Engine storage failed: {message}"),
+                )),
+            }
+        }
+    }
+}
+
+fn run_case(case_dir: &Path, partition_count: Option<usize>) -> (bool, String) {
     let config_path = case_dir.join("config.json");
     if !config_path.exists() {
         return (true, "skipped (no config.json)".to_string());
@@ -82,7 +154,12 @@ fn run_case(case_dir: &Path) -> (bool, String) {
     }
 
     let actual = match parse_options(&config) {
-        Ok(options) => diff_csv_files(&case_dir.join("a.csv"), &case_dir.join("b.csv"), &options),
+        Ok(options) => run_diff(
+            &case_dir.join("a.csv"),
+            &case_dir.join("b.csv"),
+            &options,
+            partition_count,
+        ),
         Err(err) => Err(err),
     };
 
@@ -180,6 +257,14 @@ fn repo_root() -> PathBuf {
 }
 
 fn main() {
+    let partition_count = match parse_partition_count_env() {
+        Ok(value) => value,
+        Err(message) => {
+            eprintln!("{message}");
+            std::process::exit(2);
+        }
+    };
+
     let root = repo_root();
     let fixtures_root = root.join("diffly-spec").join("fixtures");
 
@@ -193,7 +278,7 @@ fn main() {
 
     let mut failed = 0usize;
     for case_dir in case_dirs {
-        let (ok, msg) = run_case(&case_dir);
+        let (ok, msg) = run_case(&case_dir, partition_count);
         let status = if ok { "PASS" } else { "FAIL" };
         let name = case_dir
             .file_name()

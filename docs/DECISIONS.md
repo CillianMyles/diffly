@@ -114,6 +114,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: allows incremental hardening/compatibility checks before making partitioned execution the default.
 
+### D-019 Engine conformance gating
+
+- Decision: add conformance coverage for the engine path using a single-partition mode (`DIFFLY_ENGINE_PARTITIONS=1`) while default conformance still targets `diffly-core`.
+- Status: active.
+- Rationale: validates engine wiring/behavior against fixtures with deterministic ordering parity before broader rollout.
+
 ## Update Protocol
 
 When a new decision is made:

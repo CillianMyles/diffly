@@ -55,6 +55,7 @@ name = "diffly-conformance"
 version = "0.1.0"
 dependencies = [
  "diffly-core",
+ "diffly-engine",
  "serde_json",
 ]
 

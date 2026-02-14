@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `4740a2d`
+- Last pushed commit at time of this update: `e6a50ca`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -54,6 +54,10 @@ Last updated: 2026-02-14
   - Rust CLI supports `--partitions N`
   - `make diff-rust ... PARTITIONS=N` wired for local use
 - Added CI coverage for partitioned Rust CLI mode (`make diff-rust ... PARTITIONS=4` smoke check)
+- Added engine-backed conformance mode:
+  - `diffly-conformance` supports `DIFFLY_ENGINE_PARTITIONS`
+  - `make test-spec-rust-engine PARTITIONS=1` checks fixture parity through engine path
+  - CI now runs this engine parity check on each push/PR
 
 ## In Progress
 

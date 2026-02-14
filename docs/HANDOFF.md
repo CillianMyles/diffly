@@ -25,6 +25,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - partition-local diff execution available via `diff_partitioned_from_manifest`
   - runtime opt-in path exposed via `EngineRunConfig.partition_count` and CLI `--partitions`
   - CI includes partitioned CLI smoke coverage
+  - conformance runner can execute engine path via `DIFFLY_ENGINE_PARTITIONS` (`make test-spec-rust-engine`)
 
 ## Quick Resume Checklist
 

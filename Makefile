@@ -7,6 +7,7 @@ help:
 	@echo "Project:"
 	@echo "    make test-spec             Run diffly spec fixtures"
 	@echo "    make test-spec-rust        Run diffly spec fixtures against Rust core"
+	@echo "    make test-spec-rust-engine [PARTITIONS=N]  Run fixtures against Rust engine path (default N=1)"
 	@echo "    make diff A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted]  Run keyed CSV diff"
 	@echo "    make diff-rust A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted] [EMIT_PROGRESS=1] [PARTITIONS=N]  Run Rust keyed CSV diff"
 	@echo ""
@@ -39,6 +40,25 @@ test-spec-rust:
 		exit 2; \
 	fi; \
 	export PATH="$$(dirname "$$CARGO_BIN"):$$PATH"; \
+	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-conformance
+
+.PHONY: test-spec-rust-engine
+
+test-spec-rust-engine:
+	@CARGO_BIN="$$(command -v cargo || true)"; \
+	RUSTUP_BIN="$$(command -v rustup || true)"; \
+	if [ -z "$$RUSTUP_BIN" ] && [ -x "/opt/homebrew/opt/rustup/bin/rustup" ]; then \
+		RUSTUP_BIN="/opt/homebrew/opt/rustup/bin/rustup"; \
+	fi; \
+	if [ -z "$$CARGO_BIN" ] && [ -n "$$RUSTUP_BIN" ]; then \
+		CARGO_BIN="$$($$RUSTUP_BIN which cargo 2>/dev/null || true)"; \
+	fi; \
+	if [ -z "$$CARGO_BIN" ] || [ ! -x "$$CARGO_BIN" ]; then \
+		echo "cargo is required (install rustup + stable toolchain first)"; \
+		exit 2; \
+	fi; \
+	export PATH="$$(dirname "$$CARGO_BIN"):$$PATH"; \
+	DIFFLY_ENGINE_PARTITIONS="$${PARTITIONS:-1}" \
 	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-conformance
 
 .PHONY: diff
