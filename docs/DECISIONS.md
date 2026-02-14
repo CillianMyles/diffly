@@ -54,6 +54,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: keep Python as independent semantic reference and validate Rust via shared fixtures/parity checks.
 
+### D-009 UTF-8 BOM handling
+
+- Decision: if a UTF-8 BOM is present at the start of the first header field, strip it before schema/key processing.
+- Status: active (implemented in Python and Rust).
+- Rationale: avoid false missing-key/header mismatches from BOM-prefixed header text.
+
 ## Update Protocol
 
 When a new decision is made:

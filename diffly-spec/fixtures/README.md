@@ -23,3 +23,7 @@ make test-spec
 - `key_columns` (required)
 - `header_mode` (`strict` default, or `sorted`)
 - `emit_unchanged` (`false` default)
+
+CSV fixture note:
+
+- UTF-8 BOM in the first header field is treated as metadata and stripped.

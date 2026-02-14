@@ -81,6 +81,14 @@ fn validate_header(header: &[String], side: &str) -> Result<(), DiffError> {
     Ok(())
 }
 
+fn normalize_header(header: &mut [String]) {
+    if let Some(first) = header.first_mut() {
+        if let Some(stripped) = first.strip_prefix('\u{feff}') {
+            *first = stripped.to_string();
+        }
+    }
+}
+
 fn read_csv(path: &Path, side: &str) -> Result<(Vec<String>, Vec<IndexedRow>), DiffError> {
     let mut reader = ReaderBuilder::new()
         .has_headers(false)
@@ -101,7 +109,8 @@ fn read_csv(path: &Path, side: &str) -> Result<(Vec<String>, Vec<IndexedRow>), D
         })?,
     };
 
-    let header: Vec<String> = header_record.iter().map(ToString::to_string).collect();
+    let mut header: Vec<String> = header_record.iter().map(ToString::to_string).collect();
+    normalize_header(&mut header);
     validate_header(&header, side)?;
 
     let width = header.len();

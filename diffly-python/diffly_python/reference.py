@@ -19,11 +19,17 @@ def _validate_header(header: list[str], side: str):
         )
 
 
+def _normalize_header(header: list[str]):
+    if header and header[0].startswith("\ufeff"):
+        header[0] = header[0].removeprefix("\ufeff")
+    return header
+
+
 def _read_csv(path: Path, side: str):
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.reader(f)
         try:
-            header = next(reader)
+            header = _normalize_header(next(reader))
         except StopIteration as exc:
             raise DiffError("empty_file", f"{side} file is empty: {path}") from exc
 

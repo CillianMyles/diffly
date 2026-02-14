@@ -15,6 +15,7 @@ This document defines the initial conformance target for `diffly`.
 
 - UTF-8 text input.
 - First row is the header.
+- If a UTF-8 BOM is present at the start of the first header field, it is stripped.
 - Duplicate header names are a hard error (`duplicate_column_name`).
 - Header comparison supports two modes:
   - `strict` (default): ordered header list must match exactly.
