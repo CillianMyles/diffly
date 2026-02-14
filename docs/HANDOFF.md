@@ -27,6 +27,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - CI includes partitioned CLI smoke coverage
   - conformance runner can execute engine path via `DIFFLY_ENGINE_PARTITIONS` (`make test-spec-rust-engine`)
   - partitioned engine now emits globally key-sorted events and passes fixtures at `PARTITIONS=4`
+  - cancellation checks are active during partitioning + partition diff traversal
 
 ## Quick Resume Checklist
 

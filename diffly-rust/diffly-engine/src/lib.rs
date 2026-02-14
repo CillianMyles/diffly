@@ -416,6 +416,7 @@ fn partition_one_side(
     key_indexes: &[usize],
     spill: &TempDirSpill,
     partition_counts: &mut [usize],
+    cancel_check: &dyn CancelCheck,
 ) -> Result<usize, EngineError> {
     let width = header.len();
     let mut reader = open_csv_reader(side_path, side_label)?;
@@ -439,6 +440,9 @@ fn partition_one_side(
 
     let mut row_count = 0usize;
     for (idx, result) in records.enumerate() {
+        if cancel_check.cancelled() {
+            return Err(EngineError::Cancelled);
+        }
         let row_index = idx + 2;
         let record = result.map_err(|err| {
             diff_error(
@@ -491,6 +495,16 @@ pub fn partition_inputs_to_spill(
     options: &DiffOptions,
     partitions: usize,
 ) -> Result<PartitionManifest, EngineError> {
+    partition_inputs_to_spill_with_cancel(a_path, b_path, options, partitions, &NeverCancel)
+}
+
+fn partition_inputs_to_spill_with_cancel(
+    a_path: &Path,
+    b_path: &Path,
+    options: &DiffOptions,
+    partitions: usize,
+    cancel_check: &dyn CancelCheck,
+) -> Result<PartitionManifest, EngineError> {
     let mut a_reader = open_csv_reader(a_path, "A")?;
     let mut b_reader = open_csv_reader(b_path, "B")?;
     let columns_a = read_header(&mut a_reader, a_path, "A")?;
@@ -513,6 +527,7 @@ pub fn partition_inputs_to_spill(
         &key_indices_a,
         &spill,
         &mut partition_rows_a,
+        cancel_check,
     )?;
     let row_count_b = partition_one_side(
         b_path,
@@ -523,6 +538,7 @@ pub fn partition_inputs_to_spill(
         &key_indices_b,
         &spill,
         &mut partition_rows_b,
+        cancel_check,
     )?;
 
     Ok(PartitionManifest {
@@ -580,6 +596,14 @@ pub fn diff_partitioned_from_manifest(
     manifest: &PartitionManifest,
     options: &DiffOptions,
 ) -> Result<Vec<Value>, EngineError> {
+    diff_partitioned_from_manifest_with_cancel(manifest, options, &NeverCancel)
+}
+
+fn diff_partitioned_from_manifest_with_cancel(
+    manifest: &PartitionManifest,
+    options: &DiffOptions,
+    cancel_check: &dyn CancelCheck,
+) -> Result<Vec<Value>, EngineError> {
     let mut events: Vec<Value> = Vec::new();
     let mut keyed_events: Vec<(Vec<String>, Value)> = Vec::new();
     events.push(json!({
@@ -595,6 +619,9 @@ pub fn diff_partitioned_from_manifest(
     let mut rows_unchanged = 0u64;
 
     for partition_id in 0..manifest.spill.partitions() {
+        if cancel_check.cancelled() {
+            return Err(EngineError::Cancelled);
+        }
         let indexed_a = index_spill_records(
             read_spill_records(&manifest.spill, "a", partition_id)?,
             &options.key_columns,
@@ -616,6 +643,9 @@ pub fn diff_partitioned_from_manifest(
         all_keys.sort();
 
         for key in all_keys {
+            if cancel_check.cancelled() {
+                return Err(EngineError::Cancelled);
+            }
             let key_obj = key_object(&options.key_columns, &key);
             let in_a = indexed_a.get(&key);
             let in_b = indexed_b.get(&key);
@@ -749,8 +779,14 @@ pub fn run_keyed_to_sink_with_config(
     sink: &mut dyn EventSink,
 ) -> Result<(), EngineError> {
     let events = if let Some(partitions) = run_config.partition_count {
-        let manifest = partition_inputs_to_spill(a_path, b_path, options, partitions)?;
-        diff_partitioned_from_manifest(&manifest, options)?
+        let manifest = partition_inputs_to_spill_with_cancel(
+            a_path,
+            b_path,
+            options,
+            partitions,
+            cancel_check,
+        )?;
+        diff_partitioned_from_manifest_with_cancel(&manifest, options, cancel_check)?
     } else {
         diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?
     };
@@ -793,6 +829,14 @@ mod tests {
         fn on_event(&mut self, event: &Value) -> Result<(), String> {
             self.events.push(event.clone());
             Ok(())
+        }
+    }
+
+    struct AlwaysCancel;
+
+    impl CancelCheck for AlwaysCancel {
+        fn cancelled(&self) -> bool {
+            true
         }
     }
 
@@ -1026,6 +1070,31 @@ mod tests {
         .expect("partitioned run should succeed");
 
         assert_eq!(partitioned_sink.events, default_sink.events);
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn run_keyed_partition_mode_respects_cancellation_during_partitioning() {
+        let a = write_csv("run-cancel-a", "id,name\n1,Alice\n2,Bob\n");
+        let b = write_csv("run-cancel-b", "id,name\n1,Alicia\n3,Cara\n");
+
+        let mut sink = CollectSink { events: Vec::new() };
+        let err = run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &default_options(),
+            &EngineRunConfig {
+                partition_count: Some(4),
+                ..EngineRunConfig::default()
+            },
+            &AlwaysCancel,
+            &mut sink,
+        )
+        .expect_err("run should be cancelled");
+        assert_eq!(err, EngineError::Cancelled);
+        assert!(sink.events.is_empty());
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

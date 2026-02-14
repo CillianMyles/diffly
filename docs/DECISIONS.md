@@ -120,6 +120,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: validates engine wiring/behavior against fixtures across real partitioning paths before broader rollout.
 
+### D-020 Cancellation semantics in partitioned path
+
+- Decision: partitioned execution must check cancellation during both partition input pass and partition-local diff traversal, not only during final event emission.
+- Status: active.
+- Rationale: long-running out-of-core jobs need prompt cancel behavior across all phases for UX correctness.
+
 ## Update Protocol
 
 When a new decision is made:

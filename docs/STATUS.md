@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `0177391`
+- Last pushed commit at time of this update: `89d0526`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -59,6 +59,9 @@ Last updated: 2026-02-14
   - `make test-spec-rust-engine PARTITIONS=4` checks fixture parity through engine path
   - CI now runs this engine parity check on each push/PR
 - Updated partitioned diff ordering to global key-sorted emission, enabling multi-partition fixture parity.
+- Added partition-phase cancellation checks in engine path:
+  - cancellation is now respected during partition input pass and partition-local diff traversal
+  - added engine unit coverage for cancelled partitioned runs
 
 ## In Progress
 
