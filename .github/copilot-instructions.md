@@ -29,6 +29,8 @@ Start with TL;DR. Use bullets. Be concrete. No filler or overconfidence.
 
 ## Commits
 One logical change per commit. Use Conventional Commits. State intent. Separate refactors.
+Include this trailer in every commit message:
+`Co-authored-by: Cillian Myles <myles.cillian@gmail.com>`
 
 ## When Blocked or Uncertain
 State what you tried, what’s unclear, propose next steps, ask a specific question.
