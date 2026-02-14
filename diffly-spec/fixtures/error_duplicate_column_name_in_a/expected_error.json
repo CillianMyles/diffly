@@ -1,0 +1,4 @@
+{
+  "code": "duplicate_column_name",
+  "message_contains": "Duplicate column name in A"
+}

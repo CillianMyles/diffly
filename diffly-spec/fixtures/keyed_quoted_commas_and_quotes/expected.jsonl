@@ -1,0 +1,3 @@
+{"type":"schema","columns_a":["id","description"],"columns_b":["id","description"]}
+{"type":"changed","key":{"id":"1"},"changed":["description"],"before":{"id":"1","description":"hello, world"},"after":{"id":"1","description":"hello, world!"},"delta":{"description":{"from":"hello, world","to":"hello, world!"}}}
+{"type":"stats","rows_total_compared":2,"rows_added":0,"rows_removed":0,"rows_changed":1,"rows_unchanged":1}

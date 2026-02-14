@@ -15,8 +15,11 @@ This document defines the initial conformance target for `diffly`.
 
 - UTF-8 text input.
 - First row is the header.
-- Header comparison is strict and ordered.
-- Header mismatch is a hard error (`header_mismatch`).
+- Duplicate header names are a hard error (`duplicate_column_name`).
+- Header comparison supports two modes:
+  - `strict` (default): ordered header list must match exactly.
+  - `sorted`: sorted header names must match.
+- Header mismatch is a hard error (`header_mismatch`) in both modes.
 - Row width must match header width exactly.
 - Row width mismatch is a hard error (`row_width_mismatch`).
 
@@ -25,6 +28,7 @@ This document defines the initial conformance target for `diffly`.
 - `key_columns` must be present in both headers.
 - Missing key column is a hard error (`missing_key_column`).
 - Keys are tuples of raw CSV string values in `key_columns` order.
+- Empty string in any key column is a hard error (`missing_key_value`).
 - Duplicate keys in either input are a hard error (`duplicate_key`).
 
 ## Type and Value Rules
@@ -49,7 +53,9 @@ Given unique keyed rows from A and B:
 To keep fixtures deterministic:
 
 - Emit data events in ascending key tuple order (lexicographic string tuple order).
-- For `changed`, emit the `changed` column list in header order.
+- For `changed`, emit the `changed` column list in comparison order:
+  - `strict`: A header order
+  - `sorted`: sorted column names
 
 ## Event Stream
 
@@ -134,5 +140,16 @@ Each fixture directory contains:
 {
   "code": "duplicate_key",
   "message_contains": "Duplicate key in A"
+}
+```
+
+`config.json` fields for v0:
+
+```json
+{
+  "mode": "keyed",
+  "key_columns": ["id"],
+  "header_mode": "strict",
+  "emit_unchanged": false
 }
 ```

@@ -1,0 +1,4 @@
+{
+  "code": "invalid_header_mode",
+  "message_contains": "Unsupported header_mode"
+}

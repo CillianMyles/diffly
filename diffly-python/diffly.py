@@ -23,6 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Emit unchanged row events (off by default)",
     )
     parser.add_argument(
+        "--header-mode",
+        choices=("strict", "sorted"),
+        default="strict",
+        help="Header comparison mode: strict order match (default) or sorted-name match",
+    )
+    parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print JSON output instead of compact JSONL",
@@ -45,6 +51,7 @@ def main() -> int:
             a_path=args.a,
             b_path=args.b,
             key_columns=args.key_columns,
+            header_mode=args.header_mode,
             emit_unchanged=args.emit_unchanged,
         )
     except DiffError as err:

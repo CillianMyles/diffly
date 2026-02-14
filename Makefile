@@ -6,7 +6,7 @@ help:
 	@echo ""
 	@echo "Project:"
 	@echo "    make test-spec             Run diffly spec fixtures"
-	@echo "    make diff A=... B=... KEY=...  Run keyed CSV diff (Python reference)"
+	@echo "    make diff A=... B=... KEY=... [HEADER_MODE=strict|sorted]  Run keyed CSV diff"
 	@echo ""
 	@echo "GenAI Tooling:"
 	@echo "    make rules-install         Install GenAI rule tooling"
@@ -28,7 +28,7 @@ diff:
 		echo "Usage: make diff A=path/to/a.csv B=path/to/b.csv KEY=id"; \
 		exit 2; \
 	fi
-	python3 diffly-python/diffly.py --a "$(A)" --b "$(B)" --key "$(KEY)"
+	python3 diffly-python/diffly.py --a "$(A)" --b "$(B)" --key "$(KEY)" --header-mode "$${HEADER_MODE:-strict}"
 
 # GenAI Tooling - Source: .rulesync/**
 .PHONY: rules-install rules-generate

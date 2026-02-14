@@ -1,0 +1,6 @@
+{
+  "mode": "keyed",
+  "key_columns": ["id"],
+  "header_mode": "sorted",
+  "emit_unchanged": false
+}

@@ -1,4 +1,5 @@
 import csv
+from collections import Counter
 from pathlib import Path
 
 
@@ -9,6 +10,15 @@ class DiffError(Exception):
         self.message = message
 
 
+def _validate_header(header: list[str], side: str):
+    duplicates = [name for name, count in Counter(header).items() if count > 1]
+    if duplicates:
+        raise DiffError(
+            "duplicate_column_name",
+            f"Duplicate column name in {side}: {duplicates[0]}",
+        )
+
+
 def _read_csv(path: Path, side: str):
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.reader(f)
@@ -16,6 +26,8 @@ def _read_csv(path: Path, side: str):
             header = next(reader)
         except StopIteration as exc:
             raise DiffError("empty_file", f"{side} file is empty: {path}") from exc
+
+        _validate_header(header, side)
 
         rows = []
         width = len(header)
@@ -25,7 +37,7 @@ def _read_csv(path: Path, side: str):
                     "row_width_mismatch",
                     f"Row width mismatch in {side} at CSV row {row_index}: expected {width}, got {len(values)}",
                 )
-            rows.append(dict(zip(header, values)))
+            rows.append((row_index, dict(zip(header, values))))
 
     return header, rows
 
@@ -38,30 +50,54 @@ def _key_object(key_columns: list[str], key_tuple_value: tuple[str, ...]):
     return {column: key_tuple_value[i] for i, column in enumerate(key_columns)}
 
 
-def _index_rows(rows: list[dict], key_columns: list[str], side: str):
+def _index_rows(rows: list[tuple[int, dict]], key_columns: list[str], side: str):
     indexed = {}
-    for row in rows:
+    for row_index, row in rows:
+        for key_column in key_columns:
+            if row[key_column] == "":
+                raise DiffError(
+                    "missing_key_value",
+                    f"Missing key value in {side} at CSV row {row_index} for key column '{key_column}'",
+                )
+
         key = _key_tuple(row, key_columns)
         if key in indexed:
+            prior_row_index = indexed[key][0]
             raise DiffError(
                 "duplicate_key",
-                f"Duplicate key in {side}: {_key_object(key_columns, key)}",
+                f"Duplicate key in {side}: {_key_object(key_columns, key)} (rows {prior_row_index} and {row_index})",
             )
-        indexed[key] = row
+        indexed[key] = (row_index, row)
     return indexed
+
+
+def _comparison_columns(a_header: list[str], b_header: list[str], header_mode: str):
+    if header_mode == "strict":
+        if a_header != b_header:
+            raise DiffError("header_mismatch", f"Header mismatch: A={a_header} B={b_header}")
+        return a_header
+
+    if header_mode == "sorted":
+        if sorted(a_header) != sorted(b_header):
+            raise DiffError(
+                "header_mismatch",
+                f"Header mismatch (sorted mode): A={a_header} B={b_header}",
+            )
+        return sorted(a_header)
+
+    raise DiffError("invalid_header_mode", f"Unsupported header_mode: {header_mode}")
 
 
 def diff_csv_files(
     a_path: str,
     b_path: str,
     key_columns: list[str],
+    header_mode: str = "strict",
     emit_unchanged: bool = False,
 ):
     a_header, a_rows = _read_csv(Path(a_path), "A")
     b_header, b_rows = _read_csv(Path(b_path), "B")
-
-    if a_header != b_header:
-        raise DiffError("header_mismatch", f"Header mismatch: A={a_header} B={b_header}")
+    compare_columns = _comparison_columns(a_header, b_header, header_mode)
 
     for key_column in key_columns:
         if key_column not in a_header:
@@ -91,19 +127,19 @@ def diff_csv_files(
 
         if key not in indexed_a:
             rows_added += 1
-            events.append({"type": "added", "key": key_obj, "row": indexed_b[key]})
+            events.append({"type": "added", "key": key_obj, "row": indexed_b[key][1]})
             continue
 
         if key not in indexed_b:
             rows_removed += 1
-            events.append({"type": "removed", "key": key_obj, "row": indexed_a[key]})
+            events.append({"type": "removed", "key": key_obj, "row": indexed_a[key][1]})
             continue
 
         rows_total_compared += 1
-        row_a = indexed_a[key]
-        row_b = indexed_b[key]
+        row_a = indexed_a[key][1]
+        row_b = indexed_b[key][1]
 
-        changed_columns = [column for column in a_header if row_a[column] != row_b[column]]
+        changed_columns = [column for column in compare_columns if row_a[column] != row_b[column]]
         if not changed_columns:
             rows_unchanged += 1
             if emit_unchanged:

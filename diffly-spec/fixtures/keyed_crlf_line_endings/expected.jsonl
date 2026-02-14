@@ -1,0 +1,4 @@
+{"type":"schema","columns_a":["id","name"],"columns_b":["id","name"]}
+{"type":"removed","key":{"id":"2"},"row":{"id":"2","name":"Bob"}}
+{"type":"added","key":{"id":"3"},"row":{"id":"3","name":"Carol"}}
+{"type":"stats","rows_total_compared":1,"rows_added":1,"rows_removed":1,"rows_changed":0,"rows_unchanged":1}

@@ -1,0 +1,6 @@
+{
+  "mode": "keyed",
+  "key_columns": ["id"],
+  "header_mode": "banana",
+  "emit_unchanged": false
+}

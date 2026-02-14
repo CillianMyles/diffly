@@ -16,3 +16,10 @@ Run all fixtures with:
 ```bash
 make test-spec
 ```
+
+`config.json` supports:
+
+- `mode` (currently only `keyed`)
+- `key_columns` (required)
+- `header_mode` (`strict` default, or `sorted`)
+- `emit_unchanged` (`false` default)

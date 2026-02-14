@@ -1,0 +1,3 @@
+{"type":"schema","columns_a":["id","name","status"],"columns_b":["status","id","name"]}
+{"type":"added","key":{"id":"3"},"row":{"status":"active","id":"3","name":"Carol"}}
+{"type":"stats","rows_total_compared":2,"rows_added":1,"rows_removed":0,"rows_changed":0,"rows_unchanged":2}

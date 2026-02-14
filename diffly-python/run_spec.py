@@ -38,6 +38,7 @@ def run_case(case_dir: Path):
             str(case_dir / "a.csv"),
             str(case_dir / "b.csv"),
             key_columns=config["key_columns"],
+            header_mode=str(config.get("header_mode", "strict")),
             emit_unchanged=bool(config.get("emit_unchanged", False)),
         )
     except DiffError as err:

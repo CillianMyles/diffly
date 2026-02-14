@@ -1,0 +1,3 @@
+{"type":"schema","columns_a":["id","notes"],"columns_b":["id","notes"]}
+{"type":"changed","key":{"id":"1"},"changed":["notes"],"before":{"id":"1","notes":"line1\nline2"},"after":{"id":"1","notes":"line1\nline2 changed"},"delta":{"notes":{"from":"line1\nline2","to":"line1\nline2 changed"}}}
+{"type":"stats","rows_total_compared":2,"rows_added":0,"rows_removed":0,"rows_changed":1,"rows_unchanged":1}

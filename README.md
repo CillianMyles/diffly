@@ -328,7 +328,7 @@ diffly/
 
 ## Development status
 
-This repo is new and under active design.
+This repo is early-stage and actively evolving.
 
 ### Current CLI (Phase 1 reference)
 
@@ -338,6 +338,12 @@ You can already run a keyed diff locally using the Python reference implementati
 make diff A=path/to/a.csv B=path/to/b.csv KEY=id
 ```
 
+For sorted-header comparison mode:
+
+```bash
+make diff A=a.csv B=b.csv KEY=id HEADER_MODE=sorted
+```
+
 For composite keys, call the script directly:
 
 ```bash
@@ -345,6 +351,7 @@ python3 diffly-python/diffly.py --a a.csv --b b.csv --key id --key region
 ```
 
 The command emits JSONL events (`schema`, row events, `stats`) to stdout.
+Current semantics are strict string comparison with hard errors for duplicate column names, missing key columns, and missing key values.
 
 ### CI checks
 
@@ -363,8 +370,8 @@ To preserve execution context across sessions/agents:
 - `docs/HANDOFF.md` provides a quick resume checklist.
 
 Next steps:
-1. Create `diffly-spec` with fixtures + golden outputs.
-2. Implement `diffly-python` reference and validate behavior.
-3. Mirror semantics in `diffly-rust` and keep all spec tests passing.
-4. Add CLI wrapper and stabilize output formats.
-5. Build WASM worker + web UI.
+1. Continue expanding fixture coverage for CSV edge cases.
+2. Keep Python reference + fixtures as the source of truth for semantics.
+3. Start `diffly-rust` and drive parity using the same fixtures.
+4. Add richer CLI UX and output modes.
+5. Build WASM worker + web UI on top of parity-tested semantics.
