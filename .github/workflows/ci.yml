@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-reference:
+    name: Python Reference Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run spec fixtures
+        run: make test-spec
+
+      - name: Validate Python module syntax
+        run: python -m compileall diffly-python
+
+      - name: Run CLI smoke test
+        run: |
+          python diffly-python/diffly.py \
+            --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
+            --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
+            --key id > /tmp/diffly-smoke.jsonl
+
+      - name: Verify smoke output has schema and stats
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-smoke.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert lines, "Smoke output is empty"
+          assert lines[0].get("type") == "schema", "First event must be schema"
+          assert lines[-1].get("type") == "stats", "Last event must be stats"
+          PY

@@ -346,6 +346,14 @@ python3 diffly-python/diffly.py --a a.csv --b b.csv --key id --key region
 
 The command emits JSONL events (`schema`, row events, `stats`) to stdout.
 
+### CI checks
+
+GitHub Actions now runs on pull requests and pushes to `main`:
+
+- `make test-spec`
+- `python -m compileall diffly-python`
+- a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
+
 Next steps:
 1. Create `diffly-spec` with fixtures + golden outputs.
 2. Implement `diffly-python` reference and validate behavior.
