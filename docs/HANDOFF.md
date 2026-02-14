@@ -37,6 +37,8 @@ Use this file to transfer context between sessions/agents with minimal loss.
 - Include commit trailer:
   - `Co-authored-by: Cillian Myles <myles.cillian@gmail.com>`
 - Push to `main` (current policy until changed).
+- In autonomous mode, continue chunk-by-chunk without waiting for approval between chunks.
+- Stop only for hard blockers, uncovered product decisions, or explicit user stop.
 
 ## Minimum Validation Before Commit
 

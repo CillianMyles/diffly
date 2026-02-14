@@ -75,3 +75,19 @@ Use the files above for operational progress and execution memory.
 - `unchanged` row events: omit by default; keep counts in stats.
 - Compatibility: pre-v1 breaking changes are allowed while iterating.
 - Git flow: push directly to `main` for now in small logical Conventional Commits.
+
+## Autonomous Delivery Contract
+
+When the user asks to continue autonomously:
+
+1. Continue delivering sequential logical chunks without waiting for confirmation between chunks.
+2. After each chunk: validate, commit, push, update `docs/STATUS.md`, and immediately start the next highest-priority `Next` item.
+3. Stop only for:
+   - a hard blocker that cannot be resolved independently,
+   - a required product decision not already covered in `docs/DECISIONS.md`,
+   - explicit user pause/stop instruction.
+4. Do not stop only to provide a progress summary; summaries should be brief and attached to completed chunks.
+5. If blocked, include in `docs/STATUS.md`:
+   - attempted actions,
+   - exact error/blocker,
+   - concrete options to unblock.
