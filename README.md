@@ -364,7 +364,7 @@ Current semantics are strict string comparison with hard errors for duplicate co
 Rust workspace now lives in `diffly-rust/` with:
 
 - `diffly-core` (CSV diff semantics)
-- `diffly-engine` (engine/runtime boundary with sink + cancel interfaces)
+- `diffly-engine` (engine/runtime boundary with sink, cancel, progress, and tempdir spill utilities)
 - `diffly-cli` (native CLI surface for keyed diff)
 - `diffly-conformance` (runs `diffly-spec` fixtures)
 

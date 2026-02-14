@@ -84,6 +84,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: deterministic partition mapping across runs/platforms is required before out-of-core partitioned execution.
 
+### D-014 Spill backend bootstrap
+
+- Decision: start with a tempdir-backed spill implementation in `diffly-engine` for partition file writing/reading.
+- Status: active.
+- Rationale: enables incremental out-of-core workflow development without locking in final storage backend APIs yet.
+
 ## Update Protocol
 
 When a new decision is made:

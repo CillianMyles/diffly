@@ -188,5 +188,14 @@ fn main() {
             eprintln!("{}", encode_json(&error_event, false));
             std::process::exit(2);
         }
+        Err(EngineError::Storage(message)) => {
+            let error_event = json!({
+                "type": "error",
+                "code": "storage_error",
+                "message": message,
+            });
+            eprintln!("{}", encode_json(&error_event, false));
+            std::process::exit(2);
+        }
     }
 }

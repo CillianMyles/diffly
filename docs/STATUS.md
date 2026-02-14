@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `8d351ad`
+- Last pushed commit at time of this update: `45ee4ef`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -38,6 +38,7 @@ Last updated: 2026-02-14
 - Added Rust CLI smoke validation to CI
 - Added optional Rust engine progress events and CLI flag (`--emit-progress` / `EMIT_PROGRESS=1`)
 - Added deterministic partition key hashing helpers in `diffly-engine` (FNV-1a)
+- Added tempdir-backed spill utilities in `diffly-engine` (`TempDirSpill` + keyed record spilling)
 
 ## In Progress
 
@@ -46,7 +47,7 @@ Last updated: 2026-02-14
 ## Next
 
 1. Add more parser edge-case fixtures beyond current BOM/CRLF/multiline coverage.
-2. Implement partition spill file workflow in `diffly-engine` (tempdir backend first).
+2. Build partition pass implementation that writes/reads real CSV rows via `TempDirSpill`.
 
 ## Blockers
 

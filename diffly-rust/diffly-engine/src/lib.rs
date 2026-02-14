@@ -1,8 +1,11 @@
 use std::fmt::{Display, Formatter};
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::Path;
 
 use diffly_core::{diff_csv_files, DiffError, DiffOptions};
 use serde_json::{json, Value};
+use tempfile::TempDir;
 
 pub trait EventSink {
     fn on_event(&mut self, event: &Value) -> Result<(), String>;
@@ -17,6 +20,7 @@ pub enum EngineError {
     Diff(DiffError),
     Cancelled,
     Sink(String),
+    Storage(String),
 }
 
 impl Display for EngineError {
@@ -25,6 +29,7 @@ impl Display for EngineError {
             EngineError::Diff(err) => write!(f, "{}", err.message),
             EngineError::Cancelled => write!(f, "Operation cancelled"),
             EngineError::Sink(msg) => write!(f, "Sink failed: {msg}"),
+            EngineError::Storage(msg) => write!(f, "Storage failed: {msg}"),
         }
     }
 }
@@ -76,6 +81,96 @@ pub fn stable_key_hash(key_parts: &[String]) -> u64 {
 pub fn partition_for_key(key_parts: &[String], partitions: usize) -> usize {
     let total_partitions = partitions.max(1);
     (stable_key_hash(key_parts) % total_partitions as u64) as usize
+}
+
+pub struct TempDirSpill {
+    root: TempDir,
+    partitions: usize,
+}
+
+impl TempDirSpill {
+    pub fn new(partitions: usize) -> Result<Self, EngineError> {
+        if partitions == 0 {
+            return Err(EngineError::Storage(
+                "partitions must be greater than zero".to_string(),
+            ));
+        }
+        let root = tempfile::tempdir().map_err(|err| EngineError::Storage(err.to_string()))?;
+        Ok(Self { root, partitions })
+    }
+
+    pub fn partitions(&self) -> usize {
+        self.partitions
+    }
+
+    pub fn root_path(&self) -> &Path {
+        self.root.path()
+    }
+
+    fn validate(&self, side: &str, partition_id: usize) -> Result<(), EngineError> {
+        if side != "a" && side != "b" {
+            return Err(EngineError::Storage(format!("invalid side: {side}")));
+        }
+        if partition_id >= self.partitions {
+            return Err(EngineError::Storage(format!(
+                "partition out of range: {partition_id} (total {})",
+                self.partitions
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn partition_path(
+        &self,
+        side: &str,
+        partition_id: usize,
+    ) -> Result<std::path::PathBuf, EngineError> {
+        self.validate(side, partition_id)?;
+        Ok(self
+            .root
+            .path()
+            .join(format!("{side}_{partition_id}.jsonl")))
+    }
+
+    pub fn append_line(
+        &self,
+        side: &str,
+        partition_id: usize,
+        line: &str,
+    ) -> Result<(), EngineError> {
+        let path = self.partition_path(side, partition_id)?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|err| {
+                EngineError::Storage(format!("failed to open {}: {err}", path.display()))
+            })?;
+        writeln!(file, "{line}").map_err(|err| {
+            EngineError::Storage(format!("failed to write {}: {err}", path.display()))
+        })?;
+        Ok(())
+    }
+
+    pub fn read_partition(&self, side: &str, partition_id: usize) -> Result<String, EngineError> {
+        let path = self.partition_path(side, partition_id)?;
+        fs::read_to_string(&path).map_err(|err| {
+            EngineError::Storage(format!("failed to read {}: {err}", path.display()))
+        })
+    }
+}
+
+pub fn spill_json_record(
+    spill: &TempDirSpill,
+    side: &str,
+    key_parts: &[String],
+    row: &Value,
+) -> Result<usize, EngineError> {
+    let partition_id = partition_for_key(key_parts, spill.partitions());
+    let encoded =
+        serde_json::to_string(row).map_err(|err| EngineError::Storage(err.to_string()))?;
+    spill.append_line(side, partition_id, &encoded)?;
+    Ok(partition_id)
 }
 
 fn emit_progress(
@@ -231,5 +326,24 @@ mod tests {
         let key = vec!["123".to_string(), "eu".to_string()];
         assert_eq!(stable_key_hash(&key), 9_476_362_503_708_207_610);
         assert_eq!(partition_for_key(&key, 256), 250);
+    }
+
+    #[test]
+    fn spills_records_into_partition_files() {
+        let spill = TempDirSpill::new(8).expect("spill should initialize");
+        let key = vec!["123".to_string(), "eu".to_string()];
+        let partition = spill_json_record(
+            &spill,
+            "a",
+            &key,
+            &serde_json::json!({"id":"123","region":"eu"}),
+        )
+        .expect("spill should write row");
+
+        let contents = spill
+            .read_partition("a", partition)
+            .expect("partition should be readable");
+        assert!(contents.contains("\"id\":\"123\""));
+        assert!(spill.root_path().exists());
     }
 }
