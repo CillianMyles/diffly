@@ -16,6 +16,7 @@ struct CliArgs {
     emit_unchanged: bool,
     emit_progress: bool,
     partition_count: Option<usize>,
+    disable_partitions: bool,
     pretty: bool,
 }
 
@@ -27,6 +28,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut emit_unchanged = false;
     let mut emit_progress = false;
     let mut partition_count: Option<usize> = None;
+    let mut disable_partitions = false;
     let mut pretty = false;
 
     let args: Vec<String> = env::args().skip(1).collect();
@@ -80,6 +82,9 @@ fn parse_args() -> Result<CliArgs, String> {
                 }
                 partition_count = Some(parsed);
             }
+            "--no-partitions" => {
+                disable_partitions = true;
+            }
             "--pretty" => {
                 pretty = true;
             }
@@ -105,6 +110,7 @@ fn parse_args() -> Result<CliArgs, String> {
         emit_unchanged,
         emit_progress,
         partition_count,
+        disable_partitions,
         pretty,
     })
 }
@@ -122,6 +128,7 @@ fn help_text() -> String {
         "  --emit-unchanged           Emit unchanged row events",
         "  --emit-progress            Emit progress events",
         "  --partitions <n>           Override partition count for partitioned engine path",
+        "  --no-partitions            Force non-partitioned core path",
         "  --pretty                   Pretty-print JSON",
     ]
     .join("\n")
@@ -162,7 +169,9 @@ fn main() {
     };
     let mut run_config = EngineRunConfig::default();
     run_config.emit_progress = args.emit_progress;
-    if let Some(partition_count) = args.partition_count {
+    if args.disable_partitions {
+        run_config.partition_count = None;
+    } else if let Some(partition_count) = args.partition_count {
         run_config.partition_count = Some(partition_count);
     }
 

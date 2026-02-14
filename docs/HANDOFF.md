@@ -24,6 +24,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - spill records include `key`, `row_index`, and raw `row` payload (`read_spill_records` helper added)
   - partition-local diff execution available via `diff_partitioned_from_manifest`
   - runtime defaults to partitioned path (`EngineRunConfig.partition_count=Some(64)`) with CLI override via `--partitions`
+  - CLI supports `--no-partitions` to force core path for debugging/comparison
   - CI includes partitioned CLI smoke coverage
   - conformance runner can execute engine path via `DIFFLY_ENGINE_PARTITIONS` (`make test-spec-rust-engine`)
   - partitioned engine now emits globally key-sorted events and passes fixtures at `PARTITIONS=4`

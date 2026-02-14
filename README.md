@@ -394,6 +394,12 @@ Override partition count with:
 make diff-rust A=a.csv B=b.csv KEY=id PARTITIONS=64
 ```
 
+Force the legacy non-partitioned core path (for debugging/comparison):
+
+```bash
+make diff-rust A=a.csv B=b.csv KEY=id NO_PARTITIONS=1
+```
+
 ### CI checks
 
 GitHub Actions now runs on pull requests and pushes to `main`:

@@ -110,7 +110,7 @@ This file records active product/engineering decisions that affect implementatio
 
 ### D-018 Partitioned runtime rollout mode
 
-- Decision: partitioned execution is the default engine runtime path with `partition_count=64`, overridable via `--partitions`.
+- Decision: partitioned execution is the default engine runtime path with `partition_count=64`, overridable via `--partitions`, with explicit fallback to core path via `--no-partitions`.
 - Status: active.
 - Rationale: conformance parity now holds in multi-partition mode, so defaulting to the engine path accelerates Phase 2 stabilization.
 

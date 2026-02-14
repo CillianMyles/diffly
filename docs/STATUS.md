@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `8ee41c4`
+- Last pushed commit at time of this update: `ba41b9d`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -63,6 +63,7 @@ Last updated: 2026-02-14
   - cancellation is now respected during partition input pass and partition-local diff traversal
   - added engine unit coverage for cancelled partitioned runs
 - Switched engine runtime default to partitioned mode (default partition count: 64), with CLI override via `--partitions`.
+- Added explicit core-path fallback switch in Rust CLI (`--no-partitions`; `NO_PARTITIONS=1` in `make diff-rust`).
 
 ## In Progress
 
