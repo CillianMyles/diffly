@@ -148,28 +148,158 @@ Goal: desktop/mobile apps using Flutter + Rust engine.
 
 All implementations should be able to emit a consistent, streamable diff.
 
-A suggested approach is JSON Lines (JSONL):
+A suggested approach is JSON Lines (JSONL). The output stream may include both **data events** (added/removed/changed rows) and **meta events** (schema/progress/warnings/stats) so UIs can show summaries and progress without materializing the entire diff.
 
-Each line is an event like:
+### Output stream event types (proposed)
 
+Data events:
 - `added`
 - `removed`
 - `changed`
-- `unchanged` (optional)
+- `unchanged` (optional / usually omitted for size)
 
-Example:
+Meta events:
+- `schema`
+- `progress`
+- `warning`
+- `stats` (summary frames; may be emitted periodically and/or at end)
 
+### Row identity vs presentation
+
+Events should distinguish:
+- **row identity** (key columns, key values)
+- **row location** (optional original row numbers in A and B)
+- **row delta** (field-level differences suitable for “inspect” view)
+
+### Example events
+
+Schema event (early):
 ```json
-{"type":"changed","key":{"id":"123"},"before":{"id":"123","name":"Alice"},"after":{"id":"123","name":"Alicia"},"diff":{"name":{"from":"Alice","to":"Alicia"}}}
+{
+  "type": "schema",
+  "columns_a": ["id", "name", "status"],
+  "columns_b": ["id", "name", "status"],
+  "header_row_a": 1,
+  "header_row_b": 1
+}
 ```
 
-The exact schema will be finalized in `diffly-spec`.
+Progress event (periodic):
+```json
+{
+  "type": "progress",
+  "phase": "partitioning",
+  "bytes_read": 52428800,
+  "bytes_total": 209715200,
+  "partitions_total": 256,
+  "partitions_done": 0,
+  "throughput_bytes_per_sec": 18432000,
+  "eta_seconds": 8.4
+}
+```
+
+Changed event (row-level delta, optimized for inspection):
+```json
+{
+  "type": "changed",
+  "key": { "id": "123" },
+  "loc": { "a_row": 1823, "b_row": 1840 },
+  "changed": ["name"],
+  "before": { "id": "123", "name": "Alice", "status": "active" },
+  "after":  { "id": "123", "name": "Alicia", "status": "active" },
+  "delta": {
+    "name": { "from": "Alice", "to": "Alicia" }
+  }
+}
+```
+
+Added event:
+```json
+{
+  "type": "added",
+  "key": { "id": "999" },
+  "loc": { "a_row": null, "b_row": 20491 },
+  "row": { "id": "999", "name": "Zoe", "status": "active" }
+}
+```
+
+Removed event:
+```json
+{
+  "type": "removed",
+  "key": { "id": "888" },
+  "loc": { "a_row": 19910, "b_row": null },
+  "row": { "id": "888", "name": "Sam", "status": "inactive" }
+}
+```
+
+Duplicate key warning (important for keyed semantics):
+```json
+{
+  "type": "warning",
+  "code": "duplicate_key",
+  "key": { "id": "123" },
+  "count_a": 2,
+  "count_b": 1,
+  "a_rows": [10, 99],
+  "b_rows": [12],
+  "message": "Duplicate key encountered; diff semantics may be ambiguous for this key."
+}
+```
+
+Stats frame (periodic or final, ideal for the “summary → map” UX):
+```json
+{
+  "type": "stats",
+  "rows_total_compared": 250000,
+  "rows_added": 1203,
+  "rows_removed": 17,
+  "rows_changed": 84,
+  "cells_changed": 9412,
+  "changed_cells_by_column": {
+    "price": 5120,
+    "status": 820,
+    "updated_at": 3200,
+    "name": 272
+  },
+  "truncated": false
+}
+```
+
+### Determinism and ordering rules
+
+Because the engine may partition and spill to disk, output ordering must be explicitly defined for deterministic tests.
+
+Suggested rule (v1):
+- Emit results in **partition order** (`p = 0..N-1`).
+- Within a partition, emit in a stable order (e.g. by key hash then key bytes).
+- Include `partition_id` in progress frames (optional) to aid debugging.
+
+---
+
+## Diff modes (semantics)
+
+diffly should explicitly support multiple comparison modes; `diffly-spec` will define expected output for each.
+
+### `keyed` mode (default when key columns are provided)
+- external hash-join semantics using key columns
+- supports adds/removes/changes per key
+- must define behavior for duplicate keys (warn/error/group)
+
+### `positional` mode (no key columns, row order matters)
+- compare row i in A to row i in B
+- adds/removes reflect differing lengths
+
+### `bag` mode (no key columns, ignore row order)
+- treat each row as a value; compare as a multiset
+- implementation may hash rows and compare counts
+- emits adds/removes/changes at row-hash granularity (spec-defined)
 
 ---
 
 ## Monorepo layout (proposed)
 
-```
+```text
 diffly/
   diffly-spec/        # fixtures + golden outputs + semantics docs
   diffly-python/      # reference implementation + runs spec tests
@@ -206,9 +336,3 @@ Next steps:
 3. Mirror semantics in `diffly-rust` and keep all spec tests passing.
 4. Add CLI wrapper and stabilize output formats.
 5. Build WASM worker + web UI.
-
----
-
-## License
-
-TBD.
