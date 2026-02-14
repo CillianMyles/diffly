@@ -1,0 +1,4 @@
+{"type":"schema","columns_a":["id","note"],"columns_b":["id","note"]}
+{"type":"changed","key":{"id":"1"},"changed":["note"],"before":{"id":"1","note":""},"after":{"id":"1","note":"null"},"delta":{"note":{"from":"","to":"null"}}}
+{"type":"changed","key":{"id":"2"},"changed":["note"],"before":{"id":"2","note":"null"},"after":{"id":"2","note":""},"delta":{"note":{"from":"null","to":""}}}
+{"type":"stats","rows_total_compared":2,"rows_added":0,"rows_removed":0,"rows_changed":2,"rows_unchanged":0}

@@ -1,0 +1,5 @@
+{"type":"schema","columns_a":["id","region","name"],"columns_b":["id","region","name"]}
+{"type":"changed","key":{"id":"1","region":"eu"},"changed":["name"],"before":{"id":"1","region":"eu","name":"Aline"},"after":{"id":"1","region":"eu","name":"Alinee"},"delta":{"name":{"from":"Aline","to":"Alinee"}}}
+{"type":"removed","key":{"id":"2","region":"us"},"row":{"id":"2","region":"us","name":"Bob"}}
+{"type":"added","key":{"id":"3","region":"us"},"row":{"id":"3","region":"us","name":"Charlie"}}
+{"type":"stats","rows_total_compared":2,"rows_added":1,"rows_removed":1,"rows_changed":1,"rows_unchanged":1}

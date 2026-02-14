@@ -1,0 +1,5 @@
+{"type":"schema","columns_a":["id","name","status"],"columns_b":["id","name","status"]}
+{"type":"removed","key":{"id":"1"},"row":{"id":"1","name":"Alice","status":"active"}}
+{"type":"changed","key":{"id":"3"},"changed":["name"],"before":{"id":"3","name":"Carol","status":"active"},"after":{"id":"3","name":"Caroline","status":"active"},"delta":{"name":{"from":"Carol","to":"Caroline"}}}
+{"type":"added","key":{"id":"4"},"row":{"id":"4","name":"Dave","status":"active"}}
+{"type":"stats","rows_total_compared":2,"rows_added":1,"rows_removed":1,"rows_changed":1,"rows_unchanged":1}

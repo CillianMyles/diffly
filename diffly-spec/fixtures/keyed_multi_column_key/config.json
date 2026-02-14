@@ -1,0 +1,5 @@
+{
+  "mode": "keyed",
+  "key_columns": ["id", "region"],
+  "emit_unchanged": false
+}

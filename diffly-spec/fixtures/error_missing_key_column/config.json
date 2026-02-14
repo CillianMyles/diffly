@@ -1,0 +1,5 @@
+{
+  "mode": "keyed",
+  "key_columns": ["missing"],
+  "emit_unchanged": false
+}

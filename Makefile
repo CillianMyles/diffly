@@ -4,6 +4,9 @@
 
 help:
 	@echo ""
+	@echo "Project:"
+	@echo "    make test-spec             Run diffly spec fixtures"
+	@echo ""
 	@echo "GenAI Tooling:"
 	@echo "    make rules-install         Install GenAI rule tooling"
 	@echo "    make rules-generate        Generate AI agent rules files"
@@ -11,6 +14,11 @@ help:
 
 list:
 	@grep '^[^#[:space:]].*:' Makefile
+
+.PHONY: test-spec
+
+test-spec:
+	python3 diffly-python/run_spec.py
 
 # GenAI Tooling - Source: .rulesync/**
 .PHONY: rules-install rules-generate
