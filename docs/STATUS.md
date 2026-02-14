@@ -43,10 +43,14 @@ Last updated: 2026-02-14
   - strict/sorted header handling parity
   - hard errors for duplicate columns, missing key columns, and missing key values
   - per-partition row counts for both A and B sides
+- Added structured spill record support in `diffly-engine`:
+  - partition records now encode `key`, `row_index`, and `row`
+  - added `read_spill_records` helper for decoding partition files
 
 ## In Progress
 
 - Keep Rust and Python behavior in lockstep via shared fixtures
+- Implement partition-local join execution over spill records
 
 ## Next
 

@@ -96,6 +96,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: out-of-core runtime work must not drift from phase-1 semantics while internals evolve.
 
+### D-016 Spill record envelope
+
+- Decision: partition spill files store structured JSON records with `{key, row_index, row}` instead of raw row objects.
+- Status: active.
+- Rationale: preserves source row references needed for duplicate-key diagnostics and partition-local join semantics.
+
 ## Update Protocol
 
 When a new decision is made:

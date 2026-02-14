@@ -175,6 +175,110 @@ pub fn spill_json_record(
     Ok(partition_id)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpillRecord {
+    pub key: Vec<String>,
+    pub row_index: usize,
+    pub row: std::collections::BTreeMap<String, String>,
+}
+
+pub fn read_spill_records(
+    spill: &TempDirSpill,
+    side: &str,
+    partition_id: usize,
+) -> Result<Vec<SpillRecord>, EngineError> {
+    let path = spill.partition_path(side, partition_id)?;
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = spill.read_partition(side, partition_id)?;
+    let mut records: Vec<SpillRecord> = Vec::new();
+    for (line_idx, line) in content.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let value: Value = serde_json::from_str(line).map_err(|err| {
+            EngineError::Storage(format!(
+                "failed to parse {} line {}: {err}",
+                path.display(),
+                line_idx + 1
+            ))
+        })?;
+        let object = value.as_object().ok_or_else(|| {
+            EngineError::Storage(format!(
+                "invalid spill record in {} line {}: expected object",
+                path.display(),
+                line_idx + 1
+            ))
+        })?;
+
+        let key = object
+            .get("key")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                EngineError::Storage(format!(
+                    "invalid spill record in {} line {}: missing key",
+                    path.display(),
+                    line_idx + 1
+                ))
+            })?
+            .iter()
+            .map(|item| {
+                item.as_str().map(ToString::to_string).ok_or_else(|| {
+                    EngineError::Storage(format!(
+                        "invalid spill record in {} line {}: key entries must be strings",
+                        path.display(),
+                        line_idx + 1
+                    ))
+                })
+            })
+            .collect::<Result<Vec<String>, EngineError>>()?;
+
+        let row_index = object
+            .get("row_index")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                EngineError::Storage(format!(
+                    "invalid spill record in {} line {}: missing row_index",
+                    path.display(),
+                    line_idx + 1
+                ))
+            })? as usize;
+
+        let row_object = object
+            .get("row")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                EngineError::Storage(format!(
+                    "invalid spill record in {} line {}: missing row object",
+                    path.display(),
+                    line_idx + 1
+                ))
+            })?;
+
+        let mut row = std::collections::BTreeMap::new();
+        for (column, value) in row_object {
+            let string_value = value.as_str().ok_or_else(|| {
+                EngineError::Storage(format!(
+                    "invalid spill record in {} line {}: row values must be strings",
+                    path.display(),
+                    line_idx + 1
+                ))
+            })?;
+            row.insert(column.clone(), string_value.to_string());
+        }
+
+        records.push(SpillRecord {
+            key,
+            row_index,
+            row,
+        });
+    }
+
+    Ok(records)
+}
+
 #[derive(Debug)]
 pub struct PartitionManifest {
     pub spill: TempDirSpill,
@@ -365,7 +469,12 @@ fn partition_one_side(
         }
 
         let row_value = record_to_json_object(header, &record);
-        let partition_id = spill_json_record(spill, side_tag, &key_parts, &row_value)?;
+        let envelope = json!({
+            "key": key_parts.clone(),
+            "row_index": row_index,
+            "row": row_value
+        });
+        let partition_id = spill_json_record(spill, side_tag, &key_parts, &envelope)?;
         partition_counts[partition_id] += 1;
         row_count += 1;
     }
@@ -627,17 +736,27 @@ mod tests {
         let mut observed_records = 0usize;
         for partition_id in 0..manifest.spill.partitions() {
             if manifest.partition_rows_a[partition_id] > 0 {
-                let contents = manifest
-                    .spill
-                    .read_partition("a", partition_id)
-                    .expect("partition A should be readable");
-                observed_records += contents.lines().count();
+                let records = read_spill_records(&manifest.spill, "a", partition_id)
+                    .expect("partition A should be decodable");
+                observed_records += records.len();
+                for record in records {
+                    assert!(!record.key.is_empty());
+                    assert!(record.row_index >= 2);
+                    assert!(record.row.contains_key("id"));
+                }
             }
         }
         assert_eq!(observed_records, 2);
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn read_spill_records_missing_partition_returns_empty() {
+        let spill = TempDirSpill::new(2).expect("spill should initialize");
+        let records = read_spill_records(&spill, "a", 1).expect("read should succeed");
+        assert!(records.is_empty());
     }
 
     #[test]
