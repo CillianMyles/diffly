@@ -43,6 +43,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 ## Minimum Validation Before Commit
 
 - `make test-spec`
+- `cargo test --manifest-path diffly-rust/Cargo.toml` (when Rust code changes)
 - Any targeted command related to changed files (example: CLI smoke run)
 
 ## If Blocked

@@ -361,3 +361,79 @@ pub fn diff_csv_files(
 
     Ok(events)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_csv_path(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock drift")
+            .as_nanos();
+        std::env::temp_dir().join(format!("diffly-{name}-{}-{nanos}.csv", std::process::id()))
+    }
+
+    fn write_csv(name: &str, content: &str) -> PathBuf {
+        let path = temp_csv_path(name);
+        fs::write(&path, content).expect("failed to write csv fixture");
+        path
+    }
+
+    fn default_options() -> DiffOptions {
+        DiffOptions {
+            key_columns: vec!["id".to_string()],
+            header_mode: HeaderMode::Strict,
+            emit_unchanged: false,
+        }
+    }
+
+    #[test]
+    fn duplicate_column_name_is_hard_error() {
+        let a = write_csv("dup-col-a", "id,id,name\n1,1,Alice\n");
+        let b = write_csv("dup-col-b", "id,name\n1,Alice\n");
+
+        let err = diff_csv_files(&a, &b, &default_options()).expect_err("expected duplicate_column_name");
+        assert_eq!(err.code, "duplicate_column_name");
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn missing_key_value_is_hard_error() {
+        let a = write_csv("missing-key-a", "id,name\n,Blank\n");
+        let b = write_csv("missing-key-b", "id,name\n1,Alice\n");
+
+        let err = diff_csv_files(&a, &b, &default_options()).expect_err("expected missing_key_value");
+        assert_eq!(err.code, "missing_key_value");
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn events_are_emitted_in_sorted_key_order() {
+        let a = write_csv("order-a", "id,name\n2,Bob\n1,Alice\n");
+        let b = write_csv("order-b", "id,name\n1,Alicia\n3,Cara\n");
+
+        let events = diff_csv_files(&a, &b, &default_options()).expect("diff should succeed");
+        let types: Vec<String> = events
+            .iter()
+            .map(|event| {
+                event
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .unwrap_or("<missing>")
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(types, vec!["schema", "changed", "removed", "added", "stats"]);
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+}
