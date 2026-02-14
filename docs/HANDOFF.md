@@ -22,6 +22,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - `diffly-rust/diffly-conformance`: fixture parity runner
   - partition input pass implemented (`partition_inputs_to_spill`) using tempdir JSONL spill files
   - spill records include `key`, `row_index`, and raw `row` payload (`read_spill_records` helper added)
+  - partition-local diff execution available via `diff_partitioned_from_manifest`
 
 ## Quick Resume Checklist
 

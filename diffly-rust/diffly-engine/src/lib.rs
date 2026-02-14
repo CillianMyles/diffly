@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -179,7 +180,7 @@ pub fn spill_json_record(
 pub struct SpillRecord {
     pub key: Vec<String>,
     pub row_index: usize,
-    pub row: std::collections::BTreeMap<String, String>,
+    pub row: BTreeMap<String, String>,
 }
 
 pub fn read_spill_records(
@@ -257,7 +258,7 @@ pub fn read_spill_records(
                 ))
             })?;
 
-        let mut row = std::collections::BTreeMap::new();
+        let mut row = BTreeMap::new();
         for (column, value) in row_object {
             let string_value = value.as_str().ok_or_else(|| {
                 EngineError::Storage(format!(
@@ -534,6 +535,162 @@ pub fn partition_inputs_to_spill(
     })
 }
 
+fn key_object(key_columns: &[String], key_values: &[String]) -> Value {
+    let mut key = Map::new();
+    for (idx, column) in key_columns.iter().enumerate() {
+        key.insert(column.clone(), json!(key_values[idx]));
+    }
+    Value::Object(key)
+}
+
+fn row_to_value(row: &BTreeMap<String, String>) -> Value {
+    let mut value = Map::new();
+    for (key, val) in row {
+        value.insert(key.clone(), Value::String(val.clone()));
+    }
+    Value::Object(value)
+}
+
+fn index_spill_records(
+    records: Vec<SpillRecord>,
+    key_columns: &[String],
+    side: &str,
+) -> Result<HashMap<Vec<String>, SpillRecord>, EngineError> {
+    let mut indexed: HashMap<Vec<String>, SpillRecord> = HashMap::new();
+    for record in records {
+        if let Some(prior) = indexed.get(&record.key) {
+            return Err(diff_error(
+                "duplicate_key",
+                format!(
+                    "Duplicate key in {side}: {} (rows {} and {})",
+                    key_object(key_columns, &record.key),
+                    prior.row_index,
+                    record.row_index
+                ),
+            ));
+        }
+        indexed.insert(record.key.clone(), record);
+    }
+    Ok(indexed)
+}
+
+pub fn diff_partitioned_from_manifest(
+    manifest: &PartitionManifest,
+    options: &DiffOptions,
+) -> Result<Vec<Value>, EngineError> {
+    let mut events: Vec<Value> = Vec::new();
+    events.push(json!({
+        "type": "schema",
+        "columns_a": &manifest.columns_a,
+        "columns_b": &manifest.columns_b
+    }));
+
+    let mut rows_total_compared = 0u64;
+    let mut rows_added = 0u64;
+    let mut rows_removed = 0u64;
+    let mut rows_changed = 0u64;
+    let mut rows_unchanged = 0u64;
+
+    for partition_id in 0..manifest.spill.partitions() {
+        let indexed_a = index_spill_records(
+            read_spill_records(&manifest.spill, "a", partition_id)?,
+            &options.key_columns,
+            "A",
+        )?;
+        let indexed_b = index_spill_records(
+            read_spill_records(&manifest.spill, "b", partition_id)?,
+            &options.key_columns,
+            "B",
+        )?;
+
+        let mut all_keys: Vec<Vec<String>> = indexed_a
+            .keys()
+            .chain(indexed_b.keys())
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        all_keys.sort();
+
+        for key in all_keys {
+            let key_obj = key_object(&options.key_columns, &key);
+            let in_a = indexed_a.get(&key);
+            let in_b = indexed_b.get(&key);
+
+            match (in_a, in_b) {
+                (None, Some(record_b)) => {
+                    rows_added += 1;
+                    events.push(json!({
+                        "type": "added",
+                        "key": key_obj,
+                        "row": row_to_value(&record_b.row)
+                    }));
+                }
+                (Some(record_a), None) => {
+                    rows_removed += 1;
+                    events.push(json!({
+                        "type": "removed",
+                        "key": key_obj,
+                        "row": row_to_value(&record_a.row)
+                    }));
+                }
+                (Some(record_a), Some(record_b)) => {
+                    rows_total_compared += 1;
+                    let changed_columns: Vec<String> = manifest
+                        .compare_columns
+                        .iter()
+                        .filter(|column| record_a.row.get(*column) != record_b.row.get(*column))
+                        .cloned()
+                        .collect();
+
+                    if changed_columns.is_empty() {
+                        rows_unchanged += 1;
+                        if options.emit_unchanged {
+                            events.push(json!({
+                                "type": "unchanged",
+                                "key": key_obj,
+                                "row": row_to_value(&record_a.row)
+                            }));
+                        }
+                    } else {
+                        rows_changed += 1;
+                        let mut delta = Map::new();
+                        for column in &changed_columns {
+                            delta.insert(
+                                column.clone(),
+                                json!({
+                                    "from": record_a.row.get(column).cloned().unwrap_or_default(),
+                                    "to": record_b.row.get(column).cloned().unwrap_or_default()
+                                }),
+                            );
+                        }
+
+                        events.push(json!({
+                            "type": "changed",
+                            "key": key_obj,
+                            "changed": changed_columns,
+                            "before": row_to_value(&record_a.row),
+                            "after": row_to_value(&record_b.row),
+                            "delta": Value::Object(delta)
+                        }));
+                    }
+                }
+                (None, None) => {}
+            }
+        }
+    }
+
+    events.push(json!({
+        "type": "stats",
+        "rows_total_compared": rows_total_compared,
+        "rows_added": rows_added,
+        "rows_removed": rows_removed,
+        "rows_changed": rows_changed,
+        "rows_unchanged": rows_unchanged
+    }));
+    Ok(events)
+}
+
 fn emit_progress(
     sink: &mut dyn EventSink,
     events_done: usize,
@@ -757,6 +914,61 @@ mod tests {
         let spill = TempDirSpill::new(2).expect("spill should initialize");
         let records = read_spill_records(&spill, "a", 1).expect("read should succeed");
         assert!(records.is_empty());
+    }
+
+    #[test]
+    fn partitioned_diff_emits_data_and_stats() {
+        let a = write_csv("partitioned-diff-a", "id,name\n1,Alice\n2,Bob\n");
+        let b = write_csv("partitioned-diff-b", "id,name\n1,Alicia\n3,Cara\n");
+
+        let manifest = partition_inputs_to_spill(&a, &b, &default_options(), 4)
+            .expect("partitioning should succeed");
+        let events =
+            diff_partitioned_from_manifest(&manifest, &default_options()).expect("diff succeeds");
+
+        let types: Vec<&str> = events
+            .iter()
+            .filter_map(|event| event.get("type").and_then(Value::as_str))
+            .collect();
+        assert!(types.contains(&"schema"));
+        assert!(types.contains(&"changed"));
+        assert!(types.contains(&"added"));
+        assert!(types.contains(&"removed"));
+        assert_eq!(types.last(), Some(&"stats"));
+
+        let stats = events.last().expect("stats should be present");
+        assert_eq!(
+            stats.get("rows_total_compared").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(stats.get("rows_added").and_then(Value::as_u64), Some(1));
+        assert_eq!(stats.get("rows_removed").and_then(Value::as_u64), Some(1));
+        assert_eq!(stats.get("rows_changed").and_then(Value::as_u64), Some(1));
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn partitioned_diff_duplicate_key_preserves_row_indices() {
+        let a = write_csv("partitioned-dup-a", "id,name\n1,Alice\n1,Alicia\n");
+        let b = write_csv("partitioned-dup-b", "id,name\n1,Alice\n");
+
+        let manifest = partition_inputs_to_spill(&a, &b, &default_options(), 4)
+            .expect("partitioning should succeed");
+        let err = diff_partitioned_from_manifest(&manifest, &default_options())
+            .expect_err("duplicate key should fail");
+
+        match err {
+            EngineError::Diff(diff_err) => {
+                assert_eq!(diff_err.code, "duplicate_key");
+                assert!(diff_err.message.contains("rows 2 and 3"));
+            }
+            other => panic!("expected Diff error, got {other:?}"),
+        }
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
     }
 
     #[test]

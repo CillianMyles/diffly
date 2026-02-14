@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `eea485b`
+- Last pushed commit at time of this update: `e5fdb35`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -46,11 +46,14 @@ Last updated: 2026-02-14
 - Added structured spill record support in `diffly-engine`:
   - partition records now encode `key`, `row_index`, and `row`
   - added `read_spill_records` helper for decoding partition files
+- Added partition-local diff execution in `diffly-engine`:
+  - `diff_partitioned_from_manifest` emits schema/data/stats events from spill partitions
+  - duplicate-key errors preserve source row indices from spill records
 
 ## In Progress
 
 - Keep Rust and Python behavior in lockstep via shared fixtures
-- Implement partition-local join execution over spill records
+- Wire partition-local execution into runtime path as an opt-in mode
 
 ## Next
 

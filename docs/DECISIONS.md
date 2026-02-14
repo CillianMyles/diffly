@@ -102,6 +102,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: preserves source row references needed for duplicate-key diagnostics and partition-local join semantics.
 
+### D-017 Partition-local event ordering (intermediate)
+
+- Decision: partition-local diff execution currently emits events in ascending `partition_id`, with keys sorted within each partition.
+- Status: active (intermediate, may change before stabilization).
+- Rationale: deterministic now; global key ordering across partitions can be revisited when fully switching runtime paths.
+
 ## Update Protocol
 
 When a new decision is made:
