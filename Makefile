@@ -25,11 +25,20 @@ test-spec:
 .PHONY: test-spec-rust
 
 test-spec-rust:
-	@if ! command -v cargo >/dev/null 2>&1; then \
+	@CARGO_BIN="$$(command -v cargo || true)"; \
+	RUSTUP_BIN="$$(command -v rustup || true)"; \
+	if [ -z "$$RUSTUP_BIN" ] && [ -x "/opt/homebrew/opt/rustup/bin/rustup" ]; then \
+		RUSTUP_BIN="/opt/homebrew/opt/rustup/bin/rustup"; \
+	fi; \
+	if [ -z "$$CARGO_BIN" ] && [ -n "$$RUSTUP_BIN" ]; then \
+		CARGO_BIN="$$($$RUSTUP_BIN which cargo 2>/dev/null || true)"; \
+	fi; \
+	if [ -z "$$CARGO_BIN" ] || [ ! -x "$$CARGO_BIN" ]; then \
 		echo "cargo is required (install rustup + stable toolchain first)"; \
 		exit 2; \
-	fi
-	cargo run --manifest-path diffly-rust/Cargo.toml -p diffly-conformance
+	fi; \
+	export PATH="$$(dirname "$$CARGO_BIN"):$$PATH"; \
+	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-conformance
 
 .PHONY: diff
 
