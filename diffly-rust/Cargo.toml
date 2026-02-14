@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "diffly-core",
+  "diffly-cli",
   "diffly-conformance",
 ]
 resolver = "2"

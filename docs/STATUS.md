@@ -32,6 +32,7 @@ Last updated: 2026-02-14
 - Added Rust unit tests for core error modes and deterministic event ordering
 - Added `make diff` composite-key ergonomics via `KEYS=id,region`
 - Expanded CI Rust checks with cache + `cargo test`
+- Added native Rust CLI surface (`diffly-rust/diffly-cli`) + `make diff-rust`
 
 ## In Progress
 
@@ -39,8 +40,8 @@ Last updated: 2026-02-14
 
 ## Next
 
-1. Add more parser edge-case fixtures beyond BOM and empty-file coverage.
-2. Start native Rust CLI surface (`diffly-rust/diffly-cli` or equivalent binary crate).
+1. Add more parser edge-case fixtures beyond current BOM/CRLF/multiline coverage.
+2. Start separating Rust semantics vs engine concerns for out-of-core implementation.
 
 ## Blockers
 

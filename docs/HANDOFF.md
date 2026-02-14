@@ -17,6 +17,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - missing key values (`""`): hard error
 - Rust implementation:
   - `diffly-rust/diffly-core`: semantics engine
+  - `diffly-rust/diffly-cli`: native CLI entrypoint
   - `diffly-rust/diffly-conformance`: fixture parity runner
 
 ## Quick Resume Checklist

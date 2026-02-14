@@ -60,6 +60,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active (implemented in Python and Rust).
 - Rationale: avoid false missing-key/header mismatches from BOM-prefixed header text.
 
+### D-010 Malformed CSV parse strictness
+
+- Decision: do not yet lock malformed CSV quoting behavior as a cross-runtime conformance requirement.
+- Status: active (temporary).
+- Rationale: Python and Rust parsers differ in strictness defaults; parity currently focuses on deterministic semantic outputs and explicit error codes already covered by fixtures.
+
 ## Update Protocol
 
 When a new decision is made:

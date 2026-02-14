@@ -364,12 +364,19 @@ Current semantics are strict string comparison with hard errors for duplicate co
 Rust workspace now lives in `diffly-rust/` with:
 
 - `diffly-core` (CSV diff semantics)
+- `diffly-cli` (native CLI surface for keyed diff)
 - `diffly-conformance` (runs `diffly-spec` fixtures)
 
 Run Rust parity checks with:
 
 ```bash
 make test-spec-rust
+```
+
+Run the native Rust CLI via:
+
+```bash
+make diff-rust A=a.csv B=b.csv KEY=id
 ```
 
 ### CI checks
