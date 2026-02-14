@@ -6,9 +6,9 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `1e849fa`
+- Last pushed commit at time of this update: `f1e0b93`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
-- Fixture count: 16
+- Fixture count: 17
 - Autonomy mode: active (continue until done or hard-blocked)
 
 ## Completed
@@ -28,6 +28,7 @@ Last updated: 2026-02-14
   - `diffly-rust/diffly-core` implements keyed semantics
   - `diffly-rust/diffly-conformance` runs shared fixture suite
 - Added UTF-8 BOM header normalization and fixture coverage (`keyed_utf8_bom_header`)
+- Added `empty_file` edge-case fixture coverage (`error_empty_file_in_a`)
 - Added Rust unit tests for core error modes and deterministic event ordering
 - Added `make diff` composite-key ergonomics via `KEYS=id,region`
 
