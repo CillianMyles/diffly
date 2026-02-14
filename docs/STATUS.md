@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `1767b55`
+- Last pushed commit at time of this update: `4740a2d`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -53,6 +53,7 @@ Last updated: 2026-02-14
   - `EngineRunConfig.partition_count` toggles partitioned execution
   - Rust CLI supports `--partitions N`
   - `make diff-rust ... PARTITIONS=N` wired for local use
+- Added CI coverage for partitioned Rust CLI mode (`make diff-rust ... PARTITIONS=4` smoke check)
 
 ## In Progress
 

@@ -24,6 +24,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - spill records include `key`, `row_index`, and raw `row` payload (`read_spill_records` helper added)
   - partition-local diff execution available via `diff_partitioned_from_manifest`
   - runtime opt-in path exposed via `EngineRunConfig.partition_count` and CLI `--partitions`
+  - CI includes partitioned CLI smoke coverage
 
 ## Quick Resume Checklist
 
