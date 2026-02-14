@@ -126,6 +126,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: long-running out-of-core jobs need prompt cancel behavior across all phases for UX correctness.
 
+### D-021 Progress phase framing
+
+- Decision: in partitioned runtime mode, emit coarse progress phases in sequence: `partitioning`, `diff_partitions`, then `emit_events`.
+- Status: active.
+- Rationale: gives UIs/basic callers phase visibility now, while finer-grained byte/ETA progress can be added later.
+
 ## Update Protocol
 
 When a new decision is made:

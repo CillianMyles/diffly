@@ -743,12 +743,13 @@ fn diff_partitioned_from_manifest_with_cancel(
 
 fn emit_progress(
     sink: &mut dyn EventSink,
+    phase: &str,
     events_done: usize,
     events_total: usize,
 ) -> Result<(), EngineError> {
     let progress = json!({
         "type": "progress",
-        "phase": "emit_events",
+        "phase": phase,
         "events_done": events_done,
         "events_total": events_total
     });
@@ -781,6 +782,9 @@ pub fn run_keyed_to_sink_with_config(
     sink: &mut dyn EventSink,
 ) -> Result<(), EngineError> {
     let events = if let Some(partitions) = run_config.partition_count {
+        if run_config.emit_progress {
+            emit_progress(sink, "partitioning", 0, 1)?;
+        }
         let manifest = partition_inputs_to_spill_with_cancel(
             a_path,
             b_path,
@@ -788,7 +792,15 @@ pub fn run_keyed_to_sink_with_config(
             partitions,
             cancel_check,
         )?;
-        diff_partitioned_from_manifest_with_cancel(&manifest, options, cancel_check)?
+        if run_config.emit_progress {
+            emit_progress(sink, "partitioning", 1, 1)?;
+            emit_progress(sink, "diff_partitions", 0, 1)?;
+        }
+        let events = diff_partitioned_from_manifest_with_cancel(&manifest, options, cancel_check)?;
+        if run_config.emit_progress {
+            emit_progress(sink, "diff_partitions", 1, 1)?;
+        }
+        events
     } else {
         diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?
     };
@@ -796,7 +808,7 @@ pub fn run_keyed_to_sink_with_config(
     let interval = run_config.progress_interval_events.max(1);
 
     if run_config.emit_progress {
-        emit_progress(sink, 0, total_events)?;
+        emit_progress(sink, "emit_events", 0, total_events)?;
     }
 
     for (idx, event) in events.into_iter().enumerate() {
@@ -808,7 +820,7 @@ pub fn run_keyed_to_sink_with_config(
         if run_config.emit_progress {
             let done = idx + 1;
             if done == total_events || done % interval == 0 {
-                emit_progress(sink, done, total_events)?;
+                emit_progress(sink, "emit_events", done, total_events)?;
             }
         }
     }
@@ -904,6 +916,42 @@ mod tests {
                 .and_then(Value::as_str),
             Some("progress")
         );
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn emits_partition_phase_progress_when_partitioned() {
+        let a = write_csv("progress-partitioned-a", "id,name\n1,Alice\n");
+        let b = write_csv("progress-partitioned-b", "id,name\n1,Alicia\n2,Bob\n");
+
+        let mut sink = CollectSink { events: Vec::new() };
+        let run_config = EngineRunConfig {
+            emit_progress: true,
+            progress_interval_events: 1000,
+            partition_count: Some(4),
+        };
+
+        run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &default_options(),
+            &run_config,
+            &NeverCancel,
+            &mut sink,
+        )
+        .expect("engine run should succeed");
+
+        let phases: Vec<&str> = sink
+            .events
+            .iter()
+            .filter(|event| event.get("type").and_then(Value::as_str) == Some("progress"))
+            .filter_map(|event| event.get("phase").and_then(Value::as_str))
+            .collect();
+        assert!(phases.contains(&"partitioning"));
+        assert!(phases.contains(&"diff_partitions"));
+        assert!(phases.contains(&"emit_events"));
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

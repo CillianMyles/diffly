@@ -387,6 +387,8 @@ Progress events can be emitted with:
 make diff-rust A=a.csv B=b.csv KEY=id EMIT_PROGRESS=1
 ```
 
+In partitioned mode, progress phases currently emit as: `partitioning` -> `diff_partitions` -> `emit_events`.
+
 Rust CLI now uses the partitioned engine path by default (64 partitions).
 Override partition count with:
 
