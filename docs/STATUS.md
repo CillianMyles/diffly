@@ -6,9 +6,9 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `f1e0b93`
+- Last pushed commit at time of this update: `fbe1f1a`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
-- Fixture count: 17
+- Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
 
 ## Completed
@@ -33,6 +33,7 @@ Last updated: 2026-02-14
 - Added `make diff` composite-key ergonomics via `KEYS=id,region`
 - Expanded CI Rust checks with cache + `cargo test`
 - Added native Rust CLI surface (`diffly-rust/diffly-cli`) + `make diff-rust`
+- Added fixture for whitespace-only key values (`keyed_whitespace_key_is_value`)
 
 ## In Progress
 

@@ -5,7 +5,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 ## Current State
 
 - Active phase: Phase 2 start (Rust parity work)
-- Fixture suite: 17 conformance cases
+- Fixture suite: 18 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
   - semantics: `diffly-spec/SPEC.md`

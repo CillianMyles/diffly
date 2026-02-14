@@ -31,6 +31,7 @@ This document defines the initial conformance target for `diffly`.
 - Missing key column is a hard error (`missing_key_column`).
 - Keys are tuples of raw CSV string values in `key_columns` order.
 - Empty string in any key column is a hard error (`missing_key_value`).
+- Whitespace-only key values (e.g. `" "`) are valid key values in v0.
 - Duplicate keys in either input are a hard error (`duplicate_key`).
 
 ## Type and Value Rules
