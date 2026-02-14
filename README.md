@@ -330,6 +330,22 @@ diffly/
 
 This repo is new and under active design.
 
+### Current CLI (Phase 1 reference)
+
+You can already run a keyed diff locally using the Python reference implementation:
+
+```bash
+make diff A=path/to/a.csv B=path/to/b.csv KEY=id
+```
+
+For composite keys, call the script directly:
+
+```bash
+python3 diffly-python/diffly.py --a a.csv --b b.csv --key id --key region
+```
+
+The command emits JSONL events (`schema`, row events, `stats`) to stdout.
+
 Next steps:
 1. Create `diffly-spec` with fixtures + golden outputs.
 2. Implement `diffly-python` reference and validate behavior.
