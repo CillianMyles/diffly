@@ -396,7 +396,8 @@ mod tests {
         let a = write_csv("dup-col-a", "id,id,name\n1,1,Alice\n");
         let b = write_csv("dup-col-b", "id,name\n1,Alice\n");
 
-        let err = diff_csv_files(&a, &b, &default_options()).expect_err("expected duplicate_column_name");
+        let err =
+            diff_csv_files(&a, &b, &default_options()).expect_err("expected duplicate_column_name");
         assert_eq!(err.code, "duplicate_column_name");
 
         let _ = fs::remove_file(a);
@@ -408,7 +409,8 @@ mod tests {
         let a = write_csv("missing-key-a", "id,name\n,Blank\n");
         let b = write_csv("missing-key-b", "id,name\n1,Alice\n");
 
-        let err = diff_csv_files(&a, &b, &default_options()).expect_err("expected missing_key_value");
+        let err =
+            diff_csv_files(&a, &b, &default_options()).expect_err("expected missing_key_value");
         assert_eq!(err.code, "missing_key_value");
 
         let _ = fs::remove_file(a);
@@ -431,7 +433,10 @@ mod tests {
                     .to_string()
             })
             .collect();
-        assert_eq!(types, vec!["schema", "changed", "removed", "added", "stats"]);
+        assert_eq!(
+            types,
+            vec!["schema", "changed", "removed", "added", "stats"]
+        );
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

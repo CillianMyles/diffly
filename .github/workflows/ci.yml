@@ -69,8 +69,16 @@ jobs:
         with:
           components: rustfmt
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: diffly-rust
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path diffly-rust/Cargo.toml --all --check
+
+      - name: Run Rust unit tests
+        run: cargo test --manifest-path diffly-rust/Cargo.toml
 
       - name: Run Rust conformance runner
         run: make test-spec-rust

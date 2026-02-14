@@ -31,6 +31,7 @@ Last updated: 2026-02-14
 - Added `empty_file` edge-case fixture coverage (`error_empty_file_in_a`)
 - Added Rust unit tests for core error modes and deterministic event ordering
 - Added `make diff` composite-key ergonomics via `KEYS=id,region`
+- Expanded CI Rust checks with cache + `cargo test`
 
 ## In Progress
 
@@ -38,8 +39,8 @@ Last updated: 2026-02-14
 
 ## Next
 
-1. Add more parser edge-case fixtures beyond BOM.
-2. Keep CI fast while adding checks incrementally.
+1. Add more parser edge-case fixtures beyond BOM and empty-file coverage.
+2. Start native Rust CLI surface (`diffly-rust/diffly-cli` or equivalent binary crate).
 
 ## Blockers
 
