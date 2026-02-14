@@ -48,6 +48,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Source: project rules (`.rulesync/rules/general.md` and generated outputs).
 
+### D-008 Python/Rust integration strategy (current)
+
+- Decision: do not call Rust from Python via `pyo3` during Phase 2 startup.
+- Status: active.
+- Rationale: keep Python as independent semantic reference and validate Rust via shared fixtures/parity checks.
+
 ## Update Protocol
 
 When a new decision is made:

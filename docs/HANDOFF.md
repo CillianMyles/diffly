@@ -4,7 +4,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 
 ## Current State
 
-- Active phase: Phase 1 (spec + Python reference)
+- Active phase: Phase 2 start (Rust parity work)
 - Fixture suite: 15 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
@@ -15,16 +15,20 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - `header_mode`: `strict` (default) and `sorted`
   - duplicate column names: hard error
   - missing key values (`""`): hard error
+- Rust implementation:
+  - `diffly-rust/diffly-core`: semantics engine
+  - `diffly-rust/diffly-conformance`: fixture parity runner
 
 ## Quick Resume Checklist
 
 1. `git pull origin main`
 2. Read `docs/STATUS.md` and `docs/DECISIONS.md`
 3. Run `make test-spec`
-4. If touching rules/instructions:
+4. Run `make test-spec-rust`
+5. If touching rules/instructions:
    - edit `.rulesync/rules/general.md`
    - run `make rules-generate`
-5. After any change, run relevant validation commands and update `docs/STATUS.md`
+6. After any change, run relevant validation commands and update `docs/STATUS.md`
 
 ## Delivery Rules
 

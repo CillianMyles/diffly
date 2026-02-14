@@ -4,7 +4,7 @@ Last updated: 2026-02-14
 
 ## Snapshot
 
-- Phase: Phase 1 (`diffly-spec` + Python reference)
+- Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
 - Last pushed commit at time of this update: `8fb3cf1`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
@@ -23,16 +23,19 @@ Last updated: 2026-02-14
   - missing key values are hard errors
   - optional `header_mode=sorted` support
 - Expanded fixtures for quoted fields, multiline fields, CRLF, and additional error paths
+- Started Rust workspace:
+  - `diffly-rust/diffly-core` implements keyed semantics
+  - `diffly-rust/diffly-conformance` runs shared fixture suite
 
 ## In Progress
 
-- Continue edge-case fixture expansion and keep docs/spec synchronized
+- Keep Rust and Python behavior in lockstep via shared fixtures
 
 ## Next
 
 1. Add fixtures for BOM and other parser edge-cases.
 2. Improve CLI ergonomics for composite keys in `make` workflow.
-3. Start Rust scaffolding and conformance runner integration.
+3. Add Rust unit tests around core error modes and ordering.
 4. Keep CI fast while adding checks incrementally.
 
 ## Blockers
@@ -42,6 +45,7 @@ Last updated: 2026-02-14
 ## Validation Commands
 
 - `make test-spec`
+- `make test-spec-rust`
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
 
