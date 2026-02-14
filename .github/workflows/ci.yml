@@ -55,3 +55,22 @@ jobs:
           assert lines[0].get("type") == "schema", "First event must be schema"
           assert lines[-1].get("type") == "stats", "Last event must be stats"
           PY
+
+  rust-conformance:
+    name: Rust Conformance Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path diffly-rust/Cargo.toml --all --check
+
+      - name: Run Rust conformance runner
+        run: make test-spec-rust

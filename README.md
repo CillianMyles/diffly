@@ -353,6 +353,19 @@ python3 diffly-python/diffly.py --a a.csv --b b.csv --key id --key region
 The command emits JSONL events (`schema`, row events, `stats`) to stdout.
 Current semantics are strict string comparison with hard errors for duplicate column names, missing key columns, and missing key values.
 
+### Rust conformance (Phase 2 start)
+
+Rust workspace now lives in `diffly-rust/` with:
+
+- `diffly-core` (CSV diff semantics)
+- `diffly-conformance` (runs `diffly-spec` fixtures)
+
+Run Rust parity checks with:
+
+```bash
+make test-spec-rust
+```
+
 ### CI checks
 
 GitHub Actions now runs on pull requests and pushes to `main`:
@@ -360,6 +373,7 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - `make test-spec`
 - `python -m compileall diffly-python`
 - a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
+- Rust fmt check + Rust fixture conformance (`make test-spec-rust`)
 
 ### Project memory
 

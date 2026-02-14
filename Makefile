@@ -6,6 +6,7 @@ help:
 	@echo ""
 	@echo "Project:"
 	@echo "    make test-spec             Run diffly spec fixtures"
+	@echo "    make test-spec-rust        Run diffly spec fixtures against Rust core"
 	@echo "    make diff A=... B=... KEY=... [HEADER_MODE=strict|sorted]  Run keyed CSV diff"
 	@echo ""
 	@echo "GenAI Tooling:"
@@ -20,6 +21,15 @@ list:
 
 test-spec:
 	python3 diffly-python/run_spec.py
+
+.PHONY: test-spec-rust
+
+test-spec-rust:
+	@if ! command -v cargo >/dev/null 2>&1; then \
+		echo "cargo is required (install rustup + stable toolchain first)"; \
+		exit 2; \
+	fi
+	cargo run --manifest-path diffly-rust/Cargo.toml -p diffly-conformance
 
 .PHONY: diff
 

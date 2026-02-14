@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "diffly-core",
+  "diffly-conformance",
+]
+resolver = "2"

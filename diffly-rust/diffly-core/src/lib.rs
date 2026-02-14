@@ -1,0 +1,354 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+use std::path::Path;
+
+use csv::ReaderBuilder;
+use serde_json::{json, Map, Value};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeaderMode {
+    Strict,
+    Sorted,
+}
+
+impl HeaderMode {
+    pub fn parse(value: &str) -> Result<Self, DiffError> {
+        match value {
+            "strict" => Ok(Self::Strict),
+            "sorted" => Ok(Self::Sorted),
+            other => Err(DiffError::new(
+                "invalid_header_mode",
+                format!("Unsupported header_mode: {other}"),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DiffOptions {
+    pub key_columns: Vec<String>,
+    pub header_mode: HeaderMode,
+    pub emit_unchanged: bool,
+}
+
+impl Default for DiffOptions {
+    fn default() -> Self {
+        Self {
+            key_columns: Vec::new(),
+            header_mode: HeaderMode::Strict,
+            emit_unchanged: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiffError {
+    pub code: &'static str,
+    pub message: String,
+}
+
+impl DiffError {
+    pub fn new(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+}
+
+impl Display for DiffError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl Error for DiffError {}
+
+type Row = BTreeMap<String, String>;
+type IndexedRow = (usize, Row);
+
+fn validate_header(header: &[String], side: &str) -> Result<(), DiffError> {
+    let mut seen = HashSet::new();
+    for name in header {
+        if !seen.insert(name) {
+            return Err(DiffError::new(
+                "duplicate_column_name",
+                format!("Duplicate column name in {side}: {name}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn read_csv(path: &Path, side: &str) -> Result<(Vec<String>, Vec<IndexedRow>), DiffError> {
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .flexible(true)
+        .from_path(path)
+        .map_err(|err| DiffError::new("csv_open_error", format!("Failed to open {side}: {err}")))?;
+
+    let mut records = reader.records();
+    let header_record = match records.next() {
+        None => {
+            return Err(DiffError::new(
+                "empty_file",
+                format!("{side} file is empty: {}", path.display()),
+            ))
+        }
+        Some(result) => result.map_err(|err| {
+            DiffError::new("csv_parse_error", format!("Failed to parse {side}: {err}"))
+        })?,
+    };
+
+    let header: Vec<String> = header_record.iter().map(ToString::to_string).collect();
+    validate_header(&header, side)?;
+
+    let width = header.len();
+    let mut rows: Vec<IndexedRow> = Vec::new();
+    for (idx, result) in records.enumerate() {
+        let row_index = idx + 2;
+        let record = result.map_err(|err| {
+            DiffError::new(
+                "csv_parse_error",
+                format!("Failed to parse {side} at CSV row {row_index}: {err}"),
+            )
+        })?;
+
+        if record.len() != width {
+            return Err(DiffError::new(
+                "row_width_mismatch",
+                format!(
+                    "Row width mismatch in {side} at CSV row {row_index}: expected {width}, got {}",
+                    record.len()
+                ),
+            ));
+        }
+
+        let mut row: Row = BTreeMap::new();
+        for (key, value) in header.iter().zip(record.iter()) {
+            row.insert(key.clone(), value.to_string());
+        }
+        rows.push((row_index, row));
+    }
+
+    Ok((header, rows))
+}
+
+fn comparison_columns(
+    a_header: &[String],
+    b_header: &[String],
+    header_mode: HeaderMode,
+) -> Result<Vec<String>, DiffError> {
+    match header_mode {
+        HeaderMode::Strict => {
+            if a_header != b_header {
+                return Err(DiffError::new(
+                    "header_mismatch",
+                    format!("Header mismatch: A={a_header:?} B={b_header:?}"),
+                ));
+            }
+            Ok(a_header.to_vec())
+        }
+        HeaderMode::Sorted => {
+            let mut a_sorted = a_header.to_vec();
+            let mut b_sorted = b_header.to_vec();
+            a_sorted.sort();
+            b_sorted.sort();
+            if a_sorted != b_sorted {
+                return Err(DiffError::new(
+                    "header_mismatch",
+                    format!("Header mismatch (sorted mode): A={a_header:?} B={b_header:?}"),
+                ));
+            }
+            Ok(a_sorted)
+        }
+    }
+}
+
+fn key_tuple(row: &Row, key_columns: &[String]) -> Vec<String> {
+    key_columns
+        .iter()
+        .map(|column| row.get(column).cloned().unwrap_or_default())
+        .collect()
+}
+
+fn key_object(key_columns: &[String], key_tuple_value: &[String]) -> Value {
+    let mut key = Map::new();
+    for (idx, column) in key_columns.iter().enumerate() {
+        key.insert(column.clone(), json!(key_tuple_value[idx]));
+    }
+    Value::Object(key)
+}
+
+fn index_rows(
+    rows: Vec<IndexedRow>,
+    key_columns: &[String],
+    side: &str,
+) -> Result<HashMap<Vec<String>, IndexedRow>, DiffError> {
+    let mut indexed: HashMap<Vec<String>, IndexedRow> = HashMap::new();
+    for (row_index, row) in rows {
+        for key_column in key_columns {
+            let value = row.get(key_column).ok_or_else(|| {
+                DiffError::new(
+                    "missing_key_column",
+                    format!("Missing key column: {key_column}"),
+                )
+            })?;
+            if value.is_empty() {
+                return Err(DiffError::new(
+                    "missing_key_value",
+                    format!(
+                        "Missing key value in {side} at CSV row {row_index} for key column '{key_column}'"
+                    ),
+                ));
+            }
+        }
+
+        let key = key_tuple(&row, key_columns);
+        if let Some((prior_row, _)) = indexed.get(&key) {
+            return Err(DiffError::new(
+                "duplicate_key",
+                format!(
+                    "Duplicate key in {side}: {} (rows {} and {})",
+                    key_object(key_columns, &key),
+                    prior_row,
+                    row_index
+                ),
+            ));
+        }
+        indexed.insert(key, (row_index, row));
+    }
+    Ok(indexed)
+}
+
+fn row_to_value(row: &Row) -> Value {
+    let mut value = Map::new();
+    for (key, val) in row {
+        value.insert(key.clone(), Value::String(val.clone()));
+    }
+    Value::Object(value)
+}
+
+pub fn diff_csv_files(
+    a_path: &Path,
+    b_path: &Path,
+    options: &DiffOptions,
+) -> Result<Vec<Value>, DiffError> {
+    let (a_header, a_rows) = read_csv(a_path, "A")?;
+    let (b_header, b_rows) = read_csv(b_path, "B")?;
+
+    let compare_columns = comparison_columns(&a_header, &b_header, options.header_mode)?;
+
+    for key_column in &options.key_columns {
+        if !a_header.contains(key_column) || !b_header.contains(key_column) {
+            return Err(DiffError::new(
+                "missing_key_column",
+                format!("Missing key column: {key_column}"),
+            ));
+        }
+    }
+
+    let indexed_a = index_rows(a_rows, &options.key_columns, "A")?;
+    let indexed_b = index_rows(b_rows, &options.key_columns, "B")?;
+
+    let mut all_keys: Vec<Vec<String>> = indexed_a
+        .keys()
+        .chain(indexed_b.keys())
+        .cloned()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    all_keys.sort();
+
+    let mut events: Vec<Value> = Vec::new();
+    events.push(json!({
+        "type": "schema",
+        "columns_a": a_header,
+        "columns_b": b_header
+    }));
+
+    let mut rows_total_compared = 0u64;
+    let mut rows_added = 0u64;
+    let mut rows_removed = 0u64;
+    let mut rows_changed = 0u64;
+    let mut rows_unchanged = 0u64;
+
+    for key in all_keys {
+        let key_obj = key_object(&options.key_columns, &key);
+        let in_a = indexed_a.get(&key);
+        let in_b = indexed_b.get(&key);
+
+        match (in_a, in_b) {
+            (None, Some((_, row_b))) => {
+                rows_added += 1;
+                events.push(json!({
+                    "type": "added",
+                    "key": key_obj,
+                    "row": row_to_value(row_b)
+                }));
+            }
+            (Some((_, row_a)), None) => {
+                rows_removed += 1;
+                events.push(json!({
+                    "type": "removed",
+                    "key": key_obj,
+                    "row": row_to_value(row_a)
+                }));
+            }
+            (Some((_, row_a)), Some((_, row_b))) => {
+                rows_total_compared += 1;
+
+                let changed_columns: Vec<String> = compare_columns
+                    .iter()
+                    .filter(|column| row_a.get(*column) != row_b.get(*column))
+                    .cloned()
+                    .collect();
+
+                if changed_columns.is_empty() {
+                    rows_unchanged += 1;
+                    if options.emit_unchanged {
+                        events.push(json!({
+                            "type": "unchanged",
+                            "key": key_obj,
+                            "row": row_to_value(row_a)
+                        }));
+                    }
+                } else {
+                    rows_changed += 1;
+                    let mut delta = Map::new();
+                    for column in &changed_columns {
+                        delta.insert(
+                            column.clone(),
+                            json!({
+                                "from": row_a.get(column).cloned().unwrap_or_default(),
+                                "to": row_b.get(column).cloned().unwrap_or_default()
+                            }),
+                        );
+                    }
+
+                    events.push(json!({
+                        "type": "changed",
+                        "key": key_obj,
+                        "changed": changed_columns,
+                        "before": row_to_value(row_a),
+                        "after": row_to_value(row_b),
+                        "delta": Value::Object(delta)
+                    }));
+                }
+            }
+            (None, None) => {}
+        }
+    }
+
+    events.push(json!({
+        "type": "stats",
+        "rows_total_compared": rows_total_compared,
+        "rows_added": rows_added,
+        "rows_removed": rows_removed,
+        "rows_changed": rows_changed,
+        "rows_unchanged": rows_unchanged
+    }));
+
+    Ok(events)
+}
