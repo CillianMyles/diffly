@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `89d0526`
+- Last pushed commit at time of this update: `8ee41c4`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -62,11 +62,12 @@ Last updated: 2026-02-14
 - Added partition-phase cancellation checks in engine path:
   - cancellation is now respected during partition input pass and partition-local diff traversal
   - added engine unit coverage for cancelled partitioned runs
+- Switched engine runtime default to partitioned mode (default partition count: 64), with CLI override via `--partitions`.
 
 ## In Progress
 
 - Keep Rust and Python behavior in lockstep via shared fixtures
-- Validate and refine partitioned-event ordering/compatibility before making it default
+- Evaluate promoting engine path to default fixture runner (currently core + engine both checked)
 
 ## Next
 

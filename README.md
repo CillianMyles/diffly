@@ -387,7 +387,8 @@ Progress events can be emitted with:
 make diff-rust A=a.csv B=b.csv KEY=id EMIT_PROGRESS=1
 ```
 
-Partitioned engine mode can be enabled (opt-in) with:
+Rust CLI now uses the partitioned engine path by default (64 partitions).
+Override partition count with:
 
 ```bash
 make diff-rust A=a.csv B=b.csv KEY=id PARTITIONS=64

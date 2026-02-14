@@ -53,12 +53,14 @@ pub struct EngineRunConfig {
     pub partition_count: Option<usize>,
 }
 
+const DEFAULT_PARTITION_COUNT: usize = 64;
+
 impl Default for EngineRunConfig {
     fn default() -> Self {
         Self {
             emit_progress: false,
             progress_interval_events: 1000,
-            partition_count: None,
+            partition_count: Some(DEFAULT_PARTITION_COUNT),
         }
     }
 }

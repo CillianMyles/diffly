@@ -110,9 +110,9 @@ This file records active product/engineering decisions that affect implementatio
 
 ### D-018 Partitioned runtime rollout mode
 
-- Decision: partitioned execution is opt-in via `partition_count` (`--partitions` in Rust CLI); default runtime path remains `diffly-core`.
+- Decision: partitioned execution is the default engine runtime path with `partition_count=64`, overridable via `--partitions`.
 - Status: active.
-- Rationale: allows incremental hardening/compatibility checks before making partitioned execution the default.
+- Rationale: conformance parity now holds in multi-partition mode, so defaulting to the engine path accelerates Phase 2 stabilization.
 
 ### D-019 Engine conformance gating
 

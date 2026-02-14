@@ -121,7 +121,7 @@ fn help_text() -> String {
         "  --header-mode <mode>       strict (default) | sorted",
         "  --emit-unchanged           Emit unchanged row events",
         "  --emit-progress            Emit progress events",
-        "  --partitions <n>           Enable partitioned engine path with n partitions",
+        "  --partitions <n>           Override partition count for partitioned engine path",
         "  --pretty                   Pretty-print JSON",
     ]
     .join("\n")
@@ -160,11 +160,11 @@ fn main() {
         header_mode: args.header_mode,
         emit_unchanged: args.emit_unchanged,
     };
-    let run_config = EngineRunConfig {
-        emit_progress: args.emit_progress,
-        partition_count: args.partition_count,
-        ..EngineRunConfig::default()
-    };
+    let mut run_config = EngineRunConfig::default();
+    run_config.emit_progress = args.emit_progress;
+    if let Some(partition_count) = args.partition_count {
+        run_config.partition_count = Some(partition_count);
+    }
 
     let mut sink = StdoutSink {
         pretty: args.pretty,
