@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::path::Path;
 
 use diffly_core::{diff_csv_files, DiffError, DiffOptions};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 pub trait EventSink {
     fn on_event(&mut self, event: &Value) -> Result<(), String>;
@@ -39,6 +39,35 @@ impl CancelCheck for NeverCancel {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct EngineRunConfig {
+    pub emit_progress: bool,
+    pub progress_interval_events: usize,
+}
+
+impl Default for EngineRunConfig {
+    fn default() -> Self {
+        Self {
+            emit_progress: false,
+            progress_interval_events: 1000,
+        }
+    }
+}
+
+fn emit_progress(
+    sink: &mut dyn EventSink,
+    events_done: usize,
+    events_total: usize,
+) -> Result<(), EngineError> {
+    let progress = json!({
+        "type": "progress",
+        "phase": "emit_events",
+        "events_done": events_done,
+        "events_total": events_total
+    });
+    sink.on_event(&progress).map_err(EngineError::Sink)
+}
+
 pub fn run_keyed_to_sink(
     a_path: &Path,
     b_path: &Path,
@@ -46,14 +75,130 @@ pub fn run_keyed_to_sink(
     cancel_check: &dyn CancelCheck,
     sink: &mut dyn EventSink,
 ) -> Result<(), EngineError> {
-    let events = diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?;
+    run_keyed_to_sink_with_config(
+        a_path,
+        b_path,
+        options,
+        &EngineRunConfig::default(),
+        cancel_check,
+        sink,
+    )
+}
 
-    for event in events {
+pub fn run_keyed_to_sink_with_config(
+    a_path: &Path,
+    b_path: &Path,
+    options: &DiffOptions,
+    run_config: &EngineRunConfig,
+    cancel_check: &dyn CancelCheck,
+    sink: &mut dyn EventSink,
+) -> Result<(), EngineError> {
+    let events = diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?;
+    let total_events = events.len();
+    let interval = run_config.progress_interval_events.max(1);
+
+    if run_config.emit_progress {
+        emit_progress(sink, 0, total_events)?;
+    }
+
+    for (idx, event) in events.into_iter().enumerate() {
         if cancel_check.cancelled() {
             return Err(EngineError::Cancelled);
         }
         sink.on_event(&event).map_err(EngineError::Sink)?;
+
+        if run_config.emit_progress {
+            let done = idx + 1;
+            if done == total_events || done % interval == 0 {
+                emit_progress(sink, done, total_events)?;
+            }
+        }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct CollectSink {
+        events: Vec<Value>,
+    }
+
+    impl EventSink for CollectSink {
+        fn on_event(&mut self, event: &Value) -> Result<(), String> {
+            self.events.push(event.clone());
+            Ok(())
+        }
+    }
+
+    fn temp_csv_path(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock drift")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "diffly-engine-{name}-{}-{nanos}.csv",
+            std::process::id()
+        ))
+    }
+
+    fn write_csv(name: &str, content: &str) -> PathBuf {
+        let path = temp_csv_path(name);
+        fs::write(&path, content).expect("failed to write csv fixture");
+        path
+    }
+
+    fn default_options() -> DiffOptions {
+        DiffOptions {
+            key_columns: vec!["id".to_string()],
+            ..DiffOptions::default()
+        }
+    }
+
+    #[test]
+    fn emits_progress_frames_when_enabled() {
+        let a = write_csv("progress-a", "id,name\n1,Alice\n");
+        let b = write_csv("progress-b", "id,name\n1,Alicia\n2,Bob\n");
+
+        let mut sink = CollectSink { events: Vec::new() };
+        let run_config = EngineRunConfig {
+            emit_progress: true,
+            progress_interval_events: 1,
+        };
+
+        run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &default_options(),
+            &run_config,
+            &NeverCancel,
+            &mut sink,
+        )
+        .expect("engine run should succeed");
+
+        let progress_events = sink
+            .events
+            .iter()
+            .filter(|event| event.get("type").and_then(Value::as_str) == Some("progress"))
+            .count();
+        assert!(
+            progress_events >= 2,
+            "expected at least start/end progress events"
+        );
+        assert_eq!(
+            sink.events
+                .first()
+                .and_then(|event| event.get("type"))
+                .and_then(Value::as_str),
+            Some("progress")
+        );
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
 }

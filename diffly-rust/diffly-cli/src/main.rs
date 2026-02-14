@@ -3,7 +3,9 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use diffly_core::{DiffOptions, HeaderMode};
-use diffly_engine::{run_keyed_to_sink, EngineError, EventSink, NeverCancel};
+use diffly_engine::{
+    run_keyed_to_sink_with_config, EngineError, EngineRunConfig, EventSink, NeverCancel,
+};
 use serde_json::json;
 
 struct CliArgs {
@@ -12,6 +14,7 @@ struct CliArgs {
     key_columns: Vec<String>,
     header_mode: HeaderMode,
     emit_unchanged: bool,
+    emit_progress: bool,
     pretty: bool,
 }
 
@@ -21,6 +24,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut key_columns: Vec<String> = Vec::new();
     let mut header_mode = HeaderMode::Strict;
     let mut emit_unchanged = false;
+    let mut emit_progress = false;
     let mut pretty = false;
 
     let args: Vec<String> = env::args().skip(1).collect();
@@ -58,6 +62,9 @@ fn parse_args() -> Result<CliArgs, String> {
             "--emit-unchanged" => {
                 emit_unchanged = true;
             }
+            "--emit-progress" => {
+                emit_progress = true;
+            }
             "--pretty" => {
                 pretty = true;
             }
@@ -81,6 +88,7 @@ fn parse_args() -> Result<CliArgs, String> {
         key_columns,
         header_mode,
         emit_unchanged,
+        emit_progress,
         pretty,
     })
 }
@@ -96,6 +104,7 @@ fn help_text() -> String {
         "  --key <column>             Key column (repeat for composite keys)",
         "  --header-mode <mode>       strict (default) | sorted",
         "  --emit-unchanged           Emit unchanged row events",
+        "  --emit-progress            Emit progress events",
         "  --pretty                   Pretty-print JSON",
     ]
     .join("\n")
@@ -134,15 +143,20 @@ fn main() {
         header_mode: args.header_mode,
         emit_unchanged: args.emit_unchanged,
     };
+    let run_config = EngineRunConfig {
+        emit_progress: args.emit_progress,
+        ..EngineRunConfig::default()
+    };
 
     let mut sink = StdoutSink {
         pretty: args.pretty,
     };
 
-    match run_keyed_to_sink(
+    match run_keyed_to_sink_with_config(
         Path::new(&args.a_path),
         Path::new(&args.b_path),
         &options,
+        &run_config,
         &NeverCancel,
         &mut sink,
     ) {

@@ -36,6 +36,7 @@ Last updated: 2026-02-14
 - Added fixture for whitespace-only key values (`keyed_whitespace_key_is_value`)
 - Added `diffly-rust/diffly-engine` as runtime boundary and switched Rust CLI to use it
 - Added Rust CLI smoke validation to CI
+- Added optional Rust engine progress events and CLI flag (`--emit-progress` / `EMIT_PROGRESS=1`)
 
 ## In Progress
 
@@ -44,7 +45,7 @@ Last updated: 2026-02-14
 ## Next
 
 1. Add more parser edge-case fixtures beyond current BOM/CRLF/multiline coverage.
-2. Extend `diffly-engine` toward out-of-core partitioning and progress events.
+2. Extend `diffly-engine` toward out-of-core partitioning and storage backends.
 
 ## Blockers
 

@@ -72,6 +72,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: allows adding cancellation/progress/storage concerns without polluting pure semantic core logic.
 
+### D-012 Progress event rollout
+
+- Decision: engine-level progress events are opt-in for now (`--emit-progress` in Rust CLI).
+- Status: active.
+- Rationale: enables UX/progress work without breaking existing fixture expectations for default event streams.
+
 ## Update Protocol
 
 When a new decision is made:

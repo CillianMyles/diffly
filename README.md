@@ -380,6 +380,12 @@ Run the native Rust CLI via:
 make diff-rust A=a.csv B=b.csv KEY=id
 ```
 
+Progress events can be emitted with:
+
+```bash
+make diff-rust A=a.csv B=b.csv KEY=id EMIT_PROGRESS=1
+```
+
 ### CI checks
 
 GitHub Actions now runs on pull requests and pushes to `main`:
