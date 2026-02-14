@@ -3,8 +3,9 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
-use diffly_core::{diff_csv_files, DiffError, DiffOptions};
-use serde_json::{json, Value};
+use csv::{Reader, ReaderBuilder};
+use diffly_core::{diff_csv_files, DiffError, DiffOptions, HeaderMode};
+use serde_json::{json, Map, Value};
 use tempfile::TempDir;
 
 pub trait EventSink {
@@ -83,6 +84,7 @@ pub fn partition_for_key(key_parts: &[String], partitions: usize) -> usize {
     (stable_key_hash(key_parts) % total_partitions as u64) as usize
 }
 
+#[derive(Debug)]
 pub struct TempDirSpill {
     root: TempDir,
     partitions: usize,
@@ -171,6 +173,256 @@ pub fn spill_json_record(
         serde_json::to_string(row).map_err(|err| EngineError::Storage(err.to_string()))?;
     spill.append_line(side, partition_id, &encoded)?;
     Ok(partition_id)
+}
+
+#[derive(Debug)]
+pub struct PartitionManifest {
+    pub spill: TempDirSpill,
+    pub columns_a: Vec<String>,
+    pub columns_b: Vec<String>,
+    pub compare_columns: Vec<String>,
+    pub row_count_a: usize,
+    pub row_count_b: usize,
+    pub partition_rows_a: Vec<usize>,
+    pub partition_rows_b: Vec<usize>,
+}
+
+fn diff_error(code: &'static str, message: impl Into<String>) -> EngineError {
+    EngineError::Diff(DiffError::new(code, message))
+}
+
+fn normalize_header(header: &mut [String]) {
+    if let Some(first) = header.first_mut() {
+        if let Some(stripped) = first.strip_prefix('\u{feff}') {
+            *first = stripped.to_string();
+        }
+    }
+}
+
+fn validate_header(header: &[String], side: &str) -> Result<(), EngineError> {
+    let mut seen = std::collections::HashSet::new();
+    for name in header {
+        if !seen.insert(name) {
+            return Err(diff_error(
+                "duplicate_column_name",
+                format!("Duplicate column name in {side}: {name}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn open_csv_reader(path: &Path, side: &str) -> Result<Reader<std::fs::File>, EngineError> {
+    ReaderBuilder::new()
+        .has_headers(false)
+        .flexible(true)
+        .from_path(path)
+        .map_err(|err| diff_error("csv_open_error", format!("Failed to open {side}: {err}")))
+}
+
+fn read_header(
+    reader: &mut Reader<std::fs::File>,
+    path: &Path,
+    side: &str,
+) -> Result<Vec<String>, EngineError> {
+    let mut records = reader.records();
+    let header_record = match records.next() {
+        None => {
+            return Err(diff_error(
+                "empty_file",
+                format!("{side} file is empty: {}", path.display()),
+            ))
+        }
+        Some(result) => result.map_err(|err| {
+            diff_error("csv_parse_error", format!("Failed to parse {side}: {err}"))
+        })?,
+    };
+
+    let mut header: Vec<String> = header_record.iter().map(ToString::to_string).collect();
+    normalize_header(&mut header);
+    validate_header(&header, side)?;
+    Ok(header)
+}
+
+fn comparison_columns(
+    a_header: &[String],
+    b_header: &[String],
+    header_mode: HeaderMode,
+) -> Result<Vec<String>, EngineError> {
+    match header_mode {
+        HeaderMode::Strict => {
+            if a_header != b_header {
+                return Err(diff_error(
+                    "header_mismatch",
+                    format!("Header mismatch: A={a_header:?} B={b_header:?}"),
+                ));
+            }
+            Ok(a_header.to_vec())
+        }
+        HeaderMode::Sorted => {
+            let mut a_sorted = a_header.to_vec();
+            let mut b_sorted = b_header.to_vec();
+            a_sorted.sort();
+            b_sorted.sort();
+            if a_sorted != b_sorted {
+                return Err(diff_error(
+                    "header_mismatch",
+                    format!("Header mismatch (sorted mode): A={a_header:?} B={b_header:?}"),
+                ));
+            }
+            Ok(a_sorted)
+        }
+    }
+}
+
+fn key_indices(header: &[String], key_columns: &[String]) -> Result<Vec<usize>, EngineError> {
+    key_columns
+        .iter()
+        .map(|key_column| {
+            header
+                .iter()
+                .position(|col| col == key_column)
+                .ok_or_else(|| {
+                    diff_error(
+                        "missing_key_column",
+                        format!("Missing key column: {key_column}"),
+                    )
+                })
+        })
+        .collect()
+}
+
+fn record_to_json_object(header: &[String], record: &csv::StringRecord) -> Value {
+    let mut map = Map::new();
+    for (col, value) in header.iter().zip(record.iter()) {
+        map.insert(col.clone(), Value::String(value.to_string()));
+    }
+    Value::Object(map)
+}
+
+fn partition_one_side(
+    side_path: &Path,
+    side_tag: &str,
+    side_label: &str,
+    header: &[String],
+    key_columns: &[String],
+    key_indexes: &[usize],
+    spill: &TempDirSpill,
+    partition_counts: &mut [usize],
+) -> Result<usize, EngineError> {
+    let width = header.len();
+    let mut reader = open_csv_reader(side_path, side_label)?;
+    let mut records = reader.records();
+
+    // Header already validated in the preflight pass; consume it before streaming rows.
+    let _ = records
+        .next()
+        .ok_or_else(|| {
+            diff_error(
+                "empty_file",
+                format!("{side_label} file is empty: {}", side_path.display()),
+            )
+        })?
+        .map_err(|err| {
+            diff_error(
+                "csv_parse_error",
+                format!("Failed to parse {side_label}: {err}"),
+            )
+        })?;
+
+    let mut row_count = 0usize;
+    for (idx, result) in records.enumerate() {
+        let row_index = idx + 2;
+        let record = result.map_err(|err| {
+            diff_error(
+                "csv_parse_error",
+                format!("Failed to parse {side_label} at CSV row {row_index}: {err}"),
+            )
+        })?;
+
+        if record.len() != width {
+            return Err(diff_error(
+                "row_width_mismatch",
+                format!(
+                    "Row width mismatch in {side_label} at CSV row {row_index}: expected {width}, got {}",
+                    record.len()
+                ),
+            ));
+        }
+
+        let mut key_parts: Vec<String> = Vec::with_capacity(key_indexes.len());
+        for (key_idx, key_column) in key_indexes.iter().zip(key_columns.iter()) {
+            let value = record.get(*key_idx).unwrap_or_default().to_string();
+            if value.is_empty() {
+                return Err(diff_error(
+                    "missing_key_value",
+                    format!(
+                        "Missing key value in {side_label} at CSV row {row_index} for key column '{key_column}'"
+                    ),
+                ));
+            }
+            key_parts.push(value);
+        }
+
+        let row_value = record_to_json_object(header, &record);
+        let partition_id = spill_json_record(spill, side_tag, &key_parts, &row_value)?;
+        partition_counts[partition_id] += 1;
+        row_count += 1;
+    }
+
+    Ok(row_count)
+}
+
+pub fn partition_inputs_to_spill(
+    a_path: &Path,
+    b_path: &Path,
+    options: &DiffOptions,
+    partitions: usize,
+) -> Result<PartitionManifest, EngineError> {
+    let mut a_reader = open_csv_reader(a_path, "A")?;
+    let mut b_reader = open_csv_reader(b_path, "B")?;
+    let columns_a = read_header(&mut a_reader, a_path, "A")?;
+    let columns_b = read_header(&mut b_reader, b_path, "B")?;
+    let compare_columns = comparison_columns(&columns_a, &columns_b, options.header_mode)?;
+
+    let key_indices_a = key_indices(&columns_a, &options.key_columns)?;
+    let key_indices_b = key_indices(&columns_b, &options.key_columns)?;
+
+    let spill = TempDirSpill::new(partitions)?;
+    let mut partition_rows_a = vec![0usize; spill.partitions()];
+    let mut partition_rows_b = vec![0usize; spill.partitions()];
+
+    let row_count_a = partition_one_side(
+        a_path,
+        "a",
+        "A",
+        &columns_a,
+        &options.key_columns,
+        &key_indices_a,
+        &spill,
+        &mut partition_rows_a,
+    )?;
+    let row_count_b = partition_one_side(
+        b_path,
+        "b",
+        "B",
+        &columns_b,
+        &options.key_columns,
+        &key_indices_b,
+        &spill,
+        &mut partition_rows_b,
+    )?;
+
+    Ok(PartitionManifest {
+        spill,
+        columns_a,
+        columns_b,
+        compare_columns,
+        row_count_a,
+        row_count_b,
+        partition_rows_a,
+        partition_rows_b,
+    })
 }
 
 fn emit_progress(
@@ -345,5 +597,63 @@ mod tests {
             .expect("partition should be readable");
         assert!(contents.contains("\"id\":\"123\""));
         assert!(spill.root_path().exists());
+    }
+
+    #[test]
+    fn partitions_inputs_to_spill_with_counts() {
+        let a = write_csv("partition-a", "id,name\n1,Alice\n2,Bob\n");
+        let b = write_csv("partition-b", "id,name\n1,Alicia\n3,Cara\n");
+
+        let manifest = partition_inputs_to_spill(&a, &b, &default_options(), 4)
+            .expect("partitioning should succeed");
+
+        assert_eq!(
+            manifest.columns_a,
+            vec!["id".to_string(), "name".to_string()]
+        );
+        assert_eq!(
+            manifest.columns_b,
+            vec!["id".to_string(), "name".to_string()]
+        );
+        assert_eq!(
+            manifest.compare_columns,
+            vec!["id".to_string(), "name".to_string()]
+        );
+        assert_eq!(manifest.row_count_a, 2);
+        assert_eq!(manifest.row_count_b, 2);
+        assert_eq!(manifest.partition_rows_a.iter().sum::<usize>(), 2);
+        assert_eq!(manifest.partition_rows_b.iter().sum::<usize>(), 2);
+
+        let mut observed_records = 0usize;
+        for partition_id in 0..manifest.spill.partitions() {
+            if manifest.partition_rows_a[partition_id] > 0 {
+                let contents = manifest
+                    .spill
+                    .read_partition("a", partition_id)
+                    .expect("partition A should be readable");
+                observed_records += contents.lines().count();
+            }
+        }
+        assert_eq!(observed_records, 2);
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn partitioning_missing_key_value_is_hard_error() {
+        let a = write_csv("partition-missing-key-a", "id,name\n,Blank\n");
+        let b = write_csv("partition-missing-key-b", "id,name\n1,Alice\n");
+
+        let err = partition_inputs_to_spill(&a, &b, &default_options(), 4)
+            .expect_err("expected missing_key_value");
+
+        match err {
+            EngineError::Diff(diff_err) => assert_eq!(diff_err.code, "missing_key_value"),
+            other => panic!("expected Diff error, got {other:?}"),
+        }
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
     }
 }

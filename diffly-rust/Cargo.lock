@@ -70,6 +70,7 @@ dependencies = [
 name = "diffly-engine"
 version = "0.1.0"
 dependencies = [
+ "csv",
  "diffly-core",
  "serde_json",
  "tempfile",

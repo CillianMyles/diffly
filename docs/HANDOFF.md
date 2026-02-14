@@ -20,6 +20,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - `diffly-rust/diffly-engine`: runtime boundary (sink/cancel)
   - `diffly-rust/diffly-cli`: native CLI entrypoint
   - `diffly-rust/diffly-conformance`: fixture parity runner
+  - partition input pass implemented (`partition_inputs_to_spill`) using tempdir JSONL spill files
 
 ## Quick Resume Checklist
 

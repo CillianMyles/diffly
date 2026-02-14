@@ -90,6 +90,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: enables incremental out-of-core workflow development without locking in final storage backend APIs yet.
 
+### D-015 Partition pass error parity
+
+- Decision: `diffly-engine` partitioning preflight and streaming must preserve existing semantic error behavior (`header_mismatch`, `missing_key_column`, `missing_key_value`, duplicate columns, row width mismatch).
+- Status: active.
+- Rationale: out-of-core runtime work must not drift from phase-1 semantics while internals evolve.
+
 ## Update Protocol
 
 When a new decision is made:
