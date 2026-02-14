@@ -60,3 +60,29 @@ De-emphasize style, formatting, and minor conventions - those should be enforced
 ## Documentation and Rules
 At the end of your task, ensure any required documentation is updated in the appropriate place e.g. README.  
 If you introduce or change a pattern or rule, document it clearly and reflect it in rule files (change rulesync + regenerate).
+
+## Project Memory Files
+Use these files to persist plan/progress across sessions and agents:
+
+- `docs/STATUS.md`: current state, next steps, blockers, validation commands.
+- `docs/DECISIONS.md`: active decisions, rationale, and status.
+- `docs/HANDOFF.md`: quick resume checklist and delivery rules.
+
+How to use them:
+
+1. Before substantial work, read `docs/STATUS.md` and `docs/DECISIONS.md`.
+2. At logical task completion, update `docs/STATUS.md`.
+3. On new product/semantic choices, append `docs/DECISIONS.md`.
+4. Keep `docs/HANDOFF.md` accurate for seamless agent switching.
+
+`README.md` remains the product vision/roadmap.  
+Use the files above for operational progress and execution memory.
+
+## Autonomy Gates (Current Project Defaults)
+
+- Duplicate column names: hard error (for now).
+- Header comparison: strict existing order by default; sorted-header mode is a future option.
+- Missing key values: hard error (for now).
+- `unchanged` row events: omit by default; keep counts in stats.
+- Compatibility: pre-v1 breaking changes are allowed while iterating.
+- Git flow: push directly to `main` for now in small logical Conventional Commits.

@@ -354,6 +354,14 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - `python -m compileall diffly-python`
 - a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
 
+### Project memory
+
+To preserve execution context across sessions/agents:
+
+- `docs/STATUS.md` tracks current progress, blockers, and next steps.
+- `docs/DECISIONS.md` tracks active semantic/product decisions.
+- `docs/HANDOFF.md` provides a quick resume checklist.
+
 Next steps:
 1. Create `diffly-spec` with fixtures + golden outputs.
 2. Implement `diffly-python` reference and validate behavior.

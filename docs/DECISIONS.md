@@ -1,0 +1,56 @@
+# Decisions
+
+This file records active product/engineering decisions that affect implementation semantics.
+
+## 2026-02-14
+
+### D-001 Duplicate column names
+
+- Decision: treat duplicate header/column names as a hard error for now.
+- Status: active.
+- Rationale: avoids ambiguous field addressing and cross-language divergence.
+
+### D-002 Header comparison behavior
+
+- Decision: support strict existing header order by default; plan for optional sorted-header comparison mode.
+- Status: active default + planned extension.
+- Rationale: strict mode is deterministic and simple; sorted mode may be useful later.
+
+### D-003 Missing key values
+
+- Decision: treat missing key values as a hard error for now.
+- Status: active.
+- Rationale: keyed identity must be explicit and stable.
+
+### D-004 `unchanged` event emission
+
+- Decision: omit `unchanged` row events by default.
+- Status: active.
+- Notes: keep unchanged counts in `stats`; row-level unchanged events can be enabled later if needed for rendering/progress UX.
+
+### D-005 Compatibility policy
+
+- Decision: breaking output/shape changes are allowed during early iteration before public stabilization.
+- Status: active.
+- Rationale: optimize for learning and fast iteration pre-v1.
+
+### D-006 Git workflow policy (current)
+
+- Decision: push directly to `main` for now using small logical conventional commits.
+- Status: active (temporary).
+- Rationale: fastest iteration in early-stage repository.
+
+### D-007 Commit co-author trailer
+
+- Decision: include this trailer in every commit message:
+  - `Co-authored-by: Cillian Myles <myles.cillian@gmail.com>`
+- Status: active.
+- Source: project rules (`.rulesync/rules/general.md` and generated outputs).
+
+## Update Protocol
+
+When a new decision is made:
+
+1. Add a new decision entry with date, status, rationale.
+2. Update spec/docs/code to match.
+3. If it changes instructions, update `.rulesync/rules/general.md` and run `make rules-generate`.
