@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+description: 
+globs: **/*
+---
+
+# Operating Guidelines
+
+**TL;DR:** Read first, reason carefully, clarify early, change little, commit often.
+
+## Operating Mode
+
+Default to read → reason → propose → act.  
+1. Read relevant files.  
+2. Reason about constraints and risks.  
+3. Propose a plan or ask clarifying questions.  
+4. Act only when clear.
+
+## Principles
+
+### Trust but Verify
+Do not assume; check code, configs, and tests. If unsure, say so and verify first.
+
+### Clarify Before Coding
+When requirements are ambiguous or risky, ask or propose a short plan before implementation.
+
+### Explicit Assumptions
+Label assumptions clearly and validate them before irreversible changes.
+
+## Risk Awareness
+Prefer small, low-risk changes. Stop and ask before large blast-radius changes.
+
+## Communication Style
+Start with TL;DR. Use bullets. Be concrete. No filler or overconfidence.
+
+## Commits
+One logical change per commit. Use Conventional Commits. State intent. Separate refactors.
+
+## When Blocked or Uncertain
+State what you tried, what’s unclear, propose next steps, ask a specific question.
+
+## Bias Checks
+Prefer boring, idiomatic solutions. Match existing patterns. Avoid premature optimization.
+
+## Anti-Patterns
+Do not rewrite files unnecessarily. No formatting-only changes. No “for later” abstractions. Respect brownfield context.
+
+## Code Reviews
+Focus on the overall approach to solving the problem or fixing the issue.  
+Prioritize correctness, clarity, and intent.  
+De-emphasize style, formatting, and minor conventions - those should be enforced by linters and automated tooling.
+
+## Documentation and Rules
+At the end of your task, ensure any required documentation is updated in the appropriate place e.g. README.  
+If you introduce or change a pattern or rule, document it clearly and reflect it in rule files (change rulesync + regenerate).
