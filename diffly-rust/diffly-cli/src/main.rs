@@ -1,7 +1,9 @@
 use std::env;
+use std::io::{self, Write};
 use std::path::Path;
 
-use diffly_core::{diff_csv_files, DiffOptions, HeaderMode};
+use diffly_core::{DiffOptions, HeaderMode};
+use diffly_engine::{run_keyed_to_sink, EngineError, EventSink, NeverCancel};
 use serde_json::json;
 
 struct CliArgs {
@@ -107,6 +109,17 @@ fn encode_json(value: &serde_json::Value, pretty: bool) -> String {
     }
 }
 
+struct StdoutSink {
+    pretty: bool,
+}
+
+impl EventSink for StdoutSink {
+    fn on_event(&mut self, event: &serde_json::Value) -> Result<(), String> {
+        let mut out = io::stdout().lock();
+        writeln!(out, "{}", encode_json(event, self.pretty)).map_err(|err| err.to_string())
+    }
+}
+
 fn main() {
     let args = match parse_args() {
         Ok(args) => args,
@@ -122,17 +135,41 @@ fn main() {
         emit_unchanged: args.emit_unchanged,
     };
 
-    match diff_csv_files(Path::new(&args.a_path), Path::new(&args.b_path), &options) {
-        Ok(events) => {
-            for event in events {
-                println!("{}", encode_json(&event, args.pretty));
-            }
-        }
-        Err(err) => {
+    let mut sink = StdoutSink {
+        pretty: args.pretty,
+    };
+
+    match run_keyed_to_sink(
+        Path::new(&args.a_path),
+        Path::new(&args.b_path),
+        &options,
+        &NeverCancel,
+        &mut sink,
+    ) {
+        Ok(()) => {}
+        Err(EngineError::Diff(err)) => {
             let error_event = json!({
                 "type": "error",
                 "code": err.code,
                 "message": err.message,
+            });
+            eprintln!("{}", encode_json(&error_event, false));
+            std::process::exit(2);
+        }
+        Err(EngineError::Cancelled) => {
+            let error_event = json!({
+                "type": "error",
+                "code": "cancelled",
+                "message": "Operation cancelled",
+            });
+            eprintln!("{}", encode_json(&error_event, false));
+            std::process::exit(2);
+        }
+        Err(EngineError::Sink(message)) => {
+            let error_event = json!({
+                "type": "error",
+                "code": "sink_error",
+                "message": message,
             });
             eprintln!("{}", encode_json(&error_event, false));
             std::process::exit(2);

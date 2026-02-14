@@ -66,6 +66,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active (temporary).
 - Rationale: Python and Rust parsers differ in strictness defaults; parity currently focuses on deterministic semantic outputs and explicit error codes already covered by fixtures.
 
+### D-011 Rust layering direction
+
+- Decision: introduce `diffly-engine` as a boundary above `diffly-core` and route runtime surfaces (CLI) through it.
+- Status: active.
+- Rationale: allows adding cancellation/progress/storage concerns without polluting pure semantic core logic.
+
 ## Update Protocol
 
 When a new decision is made:

@@ -1,9 +1,8 @@
 [package]
-name = "diffly-cli"
+name = "diffly-engine"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 diffly-core = { path = "../diffly-core" }
-diffly-engine = { path = "../diffly-engine" }
 serde_json = "1.0"

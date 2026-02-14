@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `fbe1f1a`
+- Last pushed commit at time of this update: `3a17d90`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -34,6 +34,7 @@ Last updated: 2026-02-14
 - Expanded CI Rust checks with cache + `cargo test`
 - Added native Rust CLI surface (`diffly-rust/diffly-cli`) + `make diff-rust`
 - Added fixture for whitespace-only key values (`keyed_whitespace_key_is_value`)
+- Added `diffly-rust/diffly-engine` as runtime boundary and switched Rust CLI to use it
 
 ## In Progress
 
@@ -42,7 +43,7 @@ Last updated: 2026-02-14
 ## Next
 
 1. Add more parser edge-case fixtures beyond current BOM/CRLF/multiline coverage.
-2. Start separating Rust semantics vs engine concerns for out-of-core implementation.
+2. Extend `diffly-engine` toward out-of-core partitioning and progress events.
 
 ## Blockers
 

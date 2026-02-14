@@ -2,6 +2,7 @@
 members = [
   "diffly-core",
   "diffly-cli",
+  "diffly-engine",
   "diffly-conformance",
 ]
 resolver = "2"

@@ -28,6 +28,7 @@ name = "diffly-cli"
 version = "0.1.0"
 dependencies = [
  "diffly-core",
+ "diffly-engine",
  "serde_json",
 ]
 
@@ -44,6 +45,14 @@ name = "diffly-core"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "serde_json",
+]
+
+[[package]]
+name = "diffly-engine"
+version = "0.1.0"
+dependencies = [
+ "diffly-core",
  "serde_json",
 ]
 
