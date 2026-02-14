@@ -81,8 +81,8 @@ Use the files above for operational progress and execution memory.
 ## Autonomy Gates (Current Project Defaults)
 
 - Duplicate column names: hard error (for now).
-- Header comparison: strict existing order by default; sorted-header mode is a future option.
-- Missing key values: hard error (for now).
+- Header comparison: strict existing order by default; optional sorted-header mode is supported.
+- Missing key values: hard error (for now); empty string in key columns counts as missing.
 - `unchanged` row events: omit by default; keep counts in stats.
 - Compatibility: pre-v1 breaking changes are allowed while iterating.
 - Git flow: push directly to `main` for now in small logical Conventional Commits.

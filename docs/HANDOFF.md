@@ -5,11 +5,16 @@ Use this file to transfer context between sessions/agents with minimal loss.
 ## Current State
 
 - Active phase: Phase 1 (spec + Python reference)
+- Fixture suite: 15 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
   - semantics: `diffly-spec/SPEC.md`
   - current progress: `docs/STATUS.md`
   - decisions/constraints: `docs/DECISIONS.md`
+- Implemented semantics highlights:
+  - `header_mode`: `strict` (default) and `sorted`
+  - duplicate column names: hard error
+  - missing key values (`""`): hard error
 
 ## Quick Resume Checklist
 

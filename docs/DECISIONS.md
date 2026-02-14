@@ -12,8 +12,8 @@ This file records active product/engineering decisions that affect implementatio
 
 ### D-002 Header comparison behavior
 
-- Decision: support strict existing header order by default; plan for optional sorted-header comparison mode.
-- Status: active default + planned extension.
+- Decision: support strict existing header order by default, with optional sorted-header comparison mode.
+- Status: active (implemented in Python reference).
 - Rationale: strict mode is deterministic and simple; sorted mode may be useful later.
 
 ### D-003 Missing key values
@@ -21,6 +21,7 @@ This file records active product/engineering decisions that affect implementatio
 - Decision: treat missing key values as a hard error for now.
 - Status: active.
 - Rationale: keyed identity must be explicit and stable.
+- Current definition: an empty string (`""`) in any key column is considered missing.
 
 ### D-004 `unchanged` event emission
 

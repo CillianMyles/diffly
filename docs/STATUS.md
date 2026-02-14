@@ -6,8 +6,9 @@ Last updated: 2026-02-14
 
 - Phase: Phase 1 (`diffly-spec` + Python reference)
 - Branch: `main`
-- Latest pushed commit: `c7e822d`
+- Last pushed commit at time of this update: `8fb3cf1`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
+- Fixture count: 15
 
 ## Completed
 
@@ -16,16 +17,22 @@ Last updated: 2026-02-14
 - Added Python reference CLI (`diffly-python/diffly.py`)
 - Added CI checks (`.github/workflows/ci.yml`)
 - Added rules requiring commit co-author trailer
+- Added project memory docs and autonomy gates
+- Added semantic hardening:
+  - duplicate column names are hard errors
+  - missing key values are hard errors
+  - optional `header_mode=sorted` support
+- Expanded fixtures for quoted fields, multiline fields, CRLF, and additional error paths
 
 ## In Progress
 
-- Hardening spec coverage with additional CSV edge-case fixtures
+- Continue edge-case fixture expansion and keep docs/spec synchronized
 
 ## Next
 
-1. Add more fixtures for CSV edge cases (quotes, multiline, CRLF, BOM, row width mismatches).
-2. Add tests for missing key values as hard errors.
-3. Improve CLI ergonomics for composite keys and machine-readable errors.
+1. Add fixtures for BOM and other parser edge-cases.
+2. Improve CLI ergonomics for composite keys in `make` workflow.
+3. Start Rust scaffolding and conformance runner integration.
 4. Keep CI fast while adding checks incrementally.
 
 ## Blockers
