@@ -15,6 +15,7 @@ struct CliArgs {
     header_mode: HeaderMode,
     emit_unchanged: bool,
     emit_progress: bool,
+    partition_count: Option<usize>,
     pretty: bool,
 }
 
@@ -25,6 +26,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut header_mode = HeaderMode::Strict;
     let mut emit_unchanged = false;
     let mut emit_progress = false;
+    let mut partition_count: Option<usize> = None;
     let mut pretty = false;
 
     let args: Vec<String> = env::args().skip(1).collect();
@@ -65,6 +67,19 @@ fn parse_args() -> Result<CliArgs, String> {
             "--emit-progress" => {
                 emit_progress = true;
             }
+            "--partitions" => {
+                i += 1;
+                let value = args
+                    .get(i)
+                    .ok_or_else(|| "--partitions requires a value".to_string())?;
+                let parsed = value
+                    .parse::<usize>()
+                    .map_err(|_| "--partitions must be a positive integer".to_string())?;
+                if parsed == 0 {
+                    return Err("--partitions must be greater than zero".to_string());
+                }
+                partition_count = Some(parsed);
+            }
             "--pretty" => {
                 pretty = true;
             }
@@ -89,6 +104,7 @@ fn parse_args() -> Result<CliArgs, String> {
         header_mode,
         emit_unchanged,
         emit_progress,
+        partition_count,
         pretty,
     })
 }
@@ -105,6 +121,7 @@ fn help_text() -> String {
         "  --header-mode <mode>       strict (default) | sorted",
         "  --emit-unchanged           Emit unchanged row events",
         "  --emit-progress            Emit progress events",
+        "  --partitions <n>           Enable partitioned engine path with n partitions",
         "  --pretty                   Pretty-print JSON",
     ]
     .join("\n")
@@ -145,6 +162,7 @@ fn main() {
     };
     let run_config = EngineRunConfig {
         emit_progress: args.emit_progress,
+        partition_count: args.partition_count,
         ..EngineRunConfig::default()
     };
 

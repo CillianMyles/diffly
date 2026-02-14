@@ -6,7 +6,7 @@ Last updated: 2026-02-14
 
 - Phase: Phase 2 started (`diffly-rust` parity)
 - Branch: `main`
-- Last pushed commit at time of this update: `e5fdb35`
+- Last pushed commit at time of this update: `1767b55`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -49,11 +49,15 @@ Last updated: 2026-02-14
 - Added partition-local diff execution in `diffly-engine`:
   - `diff_partitioned_from_manifest` emits schema/data/stats events from spill partitions
   - duplicate-key errors preserve source row indices from spill records
+- Added opt-in partitioned runtime path:
+  - `EngineRunConfig.partition_count` toggles partitioned execution
+  - Rust CLI supports `--partitions N`
+  - `make diff-rust ... PARTITIONS=N` wired for local use
 
 ## In Progress
 
 - Keep Rust and Python behavior in lockstep via shared fixtures
-- Wire partition-local execution into runtime path as an opt-in mode
+- Validate and refine partitioned-event ordering/compatibility before making it default
 
 ## Next
 

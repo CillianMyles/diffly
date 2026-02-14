@@ -108,6 +108,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active (intermediate, may change before stabilization).
 - Rationale: deterministic now; global key ordering across partitions can be revisited when fully switching runtime paths.
 
+### D-018 Partitioned runtime rollout mode
+
+- Decision: partitioned execution is opt-in via `partition_count` (`--partitions` in Rust CLI); default runtime path remains `diffly-core`.
+- Status: active.
+- Rationale: allows incremental hardening/compatibility checks before making partitioned execution the default.
+
 ## Update Protocol
 
 When a new decision is made:

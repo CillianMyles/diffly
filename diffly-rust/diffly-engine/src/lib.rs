@@ -50,6 +50,7 @@ impl CancelCheck for NeverCancel {
 pub struct EngineRunConfig {
     pub emit_progress: bool,
     pub progress_interval_events: usize,
+    pub partition_count: Option<usize>,
 }
 
 impl Default for EngineRunConfig {
@@ -57,6 +58,7 @@ impl Default for EngineRunConfig {
         Self {
             emit_progress: false,
             progress_interval_events: 1000,
+            partition_count: None,
         }
     }
 }
@@ -730,7 +732,12 @@ pub fn run_keyed_to_sink_with_config(
     cancel_check: &dyn CancelCheck,
     sink: &mut dyn EventSink,
 ) -> Result<(), EngineError> {
-    let events = diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?;
+    let events = if let Some(partitions) = run_config.partition_count {
+        let manifest = partition_inputs_to_spill(a_path, b_path, options, partitions)?;
+        diff_partitioned_from_manifest(&manifest, options)?
+    } else {
+        diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?
+    };
     let total_events = events.len();
     let interval = run_config.progress_interval_events.max(1);
 
@@ -806,6 +813,7 @@ mod tests {
         let run_config = EngineRunConfig {
             emit_progress: true,
             progress_interval_events: 1,
+            partition_count: None,
         };
 
         run_keyed_to_sink_with_config(
@@ -966,6 +974,42 @@ mod tests {
             }
             other => panic!("expected Diff error, got {other:?}"),
         }
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn run_keyed_partition_mode_can_match_default_when_single_partition() {
+        let a = write_csv("run-partitioned-a", "id,name\n2,Bob\n1,Alice\n");
+        let b = write_csv("run-partitioned-b", "id,name\n1,Alicia\n3,Cara\n");
+
+        let mut default_sink = CollectSink { events: Vec::new() };
+        run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &default_options(),
+            &EngineRunConfig::default(),
+            &NeverCancel,
+            &mut default_sink,
+        )
+        .expect("default run should succeed");
+
+        let mut partitioned_sink = CollectSink { events: Vec::new() };
+        run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &default_options(),
+            &EngineRunConfig {
+                partition_count: Some(1),
+                ..EngineRunConfig::default()
+            },
+            &NeverCancel,
+            &mut partitioned_sink,
+        )
+        .expect("partitioned run should succeed");
+
+        assert_eq!(partitioned_sink.events, default_sink.events);
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

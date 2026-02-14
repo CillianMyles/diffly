@@ -364,7 +364,7 @@ Current semantics are strict string comparison with hard errors for duplicate co
 Rust workspace now lives in `diffly-rust/` with:
 
 - `diffly-core` (CSV diff semantics)
-- `diffly-engine` (engine/runtime boundary with sink, cancel, progress, and tempdir spill utilities)
+- `diffly-engine` (engine/runtime boundary with sink, cancel, progress, and partitioned spill utilities)
 - `diffly-cli` (native CLI surface for keyed diff)
 - `diffly-conformance` (runs `diffly-spec` fixtures)
 
@@ -384,6 +384,12 @@ Progress events can be emitted with:
 
 ```bash
 make diff-rust A=a.csv B=b.csv KEY=id EMIT_PROGRESS=1
+```
+
+Partitioned engine mode can be enabled (opt-in) with:
+
+```bash
+make diff-rust A=a.csv B=b.csv KEY=id PARTITIONS=64
 ```
 
 ### CI checks
