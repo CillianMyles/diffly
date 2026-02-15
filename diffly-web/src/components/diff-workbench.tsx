@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, GitCompareArrows, Loader2, Upload, XCircle } from "lucide-react";
 import type { HeaderMode, ResultMessage, SampleEvent, WorkerMessage } from "@/lib/protocol";
 
@@ -32,6 +32,36 @@ function FilePicker({
   onPick: (file: File) => void;
   onClear: () => void;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const isCsvFile = (candidate: File) => {
+    const lower = candidate.name.toLowerCase();
+    return candidate.type === "text/csv" || lower.endsWith(".csv");
+  };
+
+  const handleDrag = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === "dragenter" || event.type === "dragover") {
+      setIsDragging(true);
+    } else if (event.type === "dragleave") {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    const dropped = event.dataTransfer.files?.[0];
+    if (!dropped) {
+      return;
+    }
+    if (isCsvFile(dropped)) {
+      onPick(dropped);
+    }
+  };
+
   return (
     <div
       style={{
@@ -59,8 +89,12 @@ function FilePicker({
         </div>
       ) : (
         <label
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
           style={{
-            border: "1px dashed var(--border)",
+            border: `1px dashed ${isDragging ? "var(--brand)" : "var(--border)"}`,
             borderRadius: 12,
             minHeight: 104,
             display: "grid",
@@ -69,6 +103,8 @@ function FilePicker({
             color: "var(--muted)",
             padding: 14,
             textAlign: "center",
+            background: isDragging ? "var(--brand-soft)" : "transparent",
+            transition: "background 120ms linear, border-color 120ms linear",
           }}
         >
           <input
@@ -77,7 +113,7 @@ function FilePicker({
             style={{ display: "none" }}
             onChange={(event) => {
               const next = event.currentTarget.files?.[0] ?? null;
-              if (next) {
+              if (next && isCsvFile(next)) {
                 onPick(next);
               }
             }}
