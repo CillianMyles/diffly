@@ -1,12 +1,12 @@
 # Status
 
-Last updated: 2026-02-14
+Last updated: 2026-02-15
 
 ## Snapshot
 
-- Phase: Phase 2 started (`diffly-rust` parity)
+- Phase: Phase 4 started (`diffly-web` bootstrap with worker + wasm path)
 - Branch: `main`
-- Last pushed commit at time of this update: `b892157`
+- Last pushed commit at time of this update: `04cbf25`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -65,16 +65,29 @@ Last updated: 2026-02-14
 - Switched engine runtime default to partitioned mode (default partition count: 64), with CLI override via `--partitions`.
 - Added explicit core-path fallback switch in Rust CLI (`--no-partitions`; `NO_PARTITIONS=1` in `make diff-rust`).
 - Added coarse partitioned-progress phases in engine runtime (`partitioning`, `diff_partitions`, `emit_events`) with unit coverage.
+- Added `diffly-core` byte-input entrypoint (`diff_csv_bytes`) for non-filesystem callers.
+- Added Rust WASM crate (`diffly-rust/diffly-wasm`) exposing `diff_csv_bytes_json(...)`.
+- Added `diffly-web` Next.js app inspired by DiffyData UX, including:
+  - dedicated Web Worker compare pipeline
+  - Rust/WASM path for small files
+  - streaming worker fallback for larger files to avoid main-thread buffering/freezes
+  - cancel + progress + bounded sample event rendering
+- Added web/wasm make commands:
+  - `make web-install`
+  - `make web-dev`
+  - `make web-typecheck`
+  - `make wasm-build-web`
+- Added CI web app checks (`npm ci`, typecheck, build).
 
 ## In Progress
 
-- Keep Rust and Python behavior in lockstep via shared fixtures
-- Evaluate promoting engine path to default fixture runner (currently core + engine both checked)
+- Keep Rust/Python fixture parity stable while adding browser runtime behavior.
+- Harden web large-file behavior with additional fixture-like browser tests and memory telemetry.
 
 ## Next
 
-1. Add more parser edge-case fixtures beyond current BOM/CRLF/multiline coverage.
-2. Build partition-local join execution that consumes spill files and emits diff events.
+1. Move browser large-file path from in-memory maps toward OPFS-backed partition spill.
+2. Add browser-level regression tests for 100MB+ inputs (progress/cancel/non-freeze assertions).
 
 ## Blockers
 
@@ -84,6 +97,9 @@ Last updated: 2026-02-14
 
 - `make test-spec`
 - `make test-spec-rust`
+- `make test-spec-rust-engine PARTITIONS=4`
+- `make web-typecheck`
+- `npm --prefix diffly-web run build`
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
 

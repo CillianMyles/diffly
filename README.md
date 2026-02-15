@@ -389,6 +389,35 @@ make diff-rust A=a.csv B=b.csv KEY=id EMIT_PROGRESS=1
 
 In partitioned mode, progress phases currently emit as: `partitioning` -> `diff_partitions` -> `emit_events`.
 
+### Web app bootstrap (Phase 4 start)
+
+`diffly-web/` is now seeded from the DiffyData-style UX and wired to `diffly` runtime semantics:
+
+- runs comparison in a dedicated Web Worker (main thread stays responsive)
+- uses Rust/WASM path for small files
+- uses streaming worker fallback for larger files to avoid `File.text()` full-buffer loading in the UI thread
+- supports cancel + phase progress frames in the UI
+
+Install and run:
+
+```bash
+make web-install
+make web-dev
+```
+
+Type-check/build:
+
+```bash
+make web-typecheck
+npm --prefix diffly-web run build
+```
+
+Build/update Rust WASM package for web:
+
+```bash
+make wasm-build-web
+```
+
 Rust CLI now uses the partitioned engine path by default (64 partitions).
 Override partition count with:
 
@@ -413,6 +442,7 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - Rust engine conformance parity mode (`make test-spec-rust-engine PARTITIONS=4`)
 - Rust CLI smoke test via `make diff-rust ...`
 - Rust partitioned CLI smoke test via `make diff-rust ... PARTITIONS=4`
+- Web app typecheck/build (`make web-typecheck` + `npm --prefix diffly-web run build`)
 
 ### Project memory
 

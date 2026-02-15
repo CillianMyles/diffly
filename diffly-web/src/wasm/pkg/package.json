@@ -1,0 +1,15 @@
+{
+  "name": "diffly-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "diffly_wasm_bg.wasm",
+    "diffly_wasm.js",
+    "diffly_wasm.d.ts"
+  ],
+  "main": "diffly_wasm.js",
+  "types": "diffly_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

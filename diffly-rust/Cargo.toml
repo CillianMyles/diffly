@@ -4,5 +4,6 @@ members = [
   "diffly-cli",
   "diffly-engine",
   "diffly-conformance",
+  "diffly-wasm",
 ]
 resolver = "2"

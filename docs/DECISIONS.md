@@ -132,6 +132,22 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: gives UIs/basic callers phase visibility now, while finer-grained byte/ETA progress can be added later.
 
+## 2026-02-15
+
+### D-022 Browser execution strategy (initial)
+
+- Decision: web app runs compare logic in a dedicated worker and uses a dual-path runtime:
+  - Rust/WASM path for smaller files
+  - streaming worker fallback for larger files.
+- Status: active.
+- Rationale: preserves UI responsiveness and prevents `File.text()`-style whole-file buffering on large browser inputs.
+
+### D-023 Browser result-shape bounds
+
+- Decision: web UI renders bounded sample events + summary stats, not full-table materialization for entire inputs.
+- Status: active.
+- Rationale: avoids DOM/memory blowups on very large CSV comparisons while still surfacing useful inspection data.
+
 ## Update Protocol
 
 When a new decision is made:

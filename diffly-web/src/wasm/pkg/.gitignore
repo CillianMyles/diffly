@@ -1,0 +1,7 @@
+*
+!diffly_wasm.js
+!diffly_wasm.d.ts
+!diffly_wasm_bg.wasm
+!diffly_wasm_bg.wasm.d.ts
+!package.json
+!.gitignore

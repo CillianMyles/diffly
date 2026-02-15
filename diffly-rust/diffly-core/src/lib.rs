@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::io::Read;
 use std::path::Path;
 
 use csv::ReaderBuilder;
@@ -89,19 +90,22 @@ fn normalize_header(header: &mut [String]) {
     }
 }
 
-fn read_csv(path: &Path, side: &str) -> Result<(Vec<String>, Vec<IndexedRow>), DiffError> {
+fn read_csv_reader<R: Read>(
+    reader: R,
+    side: &str,
+    source_label: &str,
+) -> Result<(Vec<String>, Vec<IndexedRow>), DiffError> {
     let mut reader = ReaderBuilder::new()
         .has_headers(false)
         .flexible(true)
-        .from_path(path)
-        .map_err(|err| DiffError::new("csv_open_error", format!("Failed to open {side}: {err}")))?;
+        .from_reader(reader);
 
     let mut records = reader.records();
     let header_record = match records.next() {
         None => {
             return Err(DiffError::new(
                 "empty_file",
-                format!("{side} file is empty: {}", path.display()),
+                format!("{side} file is empty: {source_label}"),
             ))
         }
         Some(result) => result.map_err(|err| {
@@ -142,6 +146,12 @@ fn read_csv(path: &Path, side: &str) -> Result<(Vec<String>, Vec<IndexedRow>), D
     }
 
     Ok((header, rows))
+}
+
+fn read_csv(path: &Path, side: &str) -> Result<(Vec<String>, Vec<IndexedRow>), DiffError> {
+    let file = std::fs::File::open(path)
+        .map_err(|err| DiffError::new("csv_open_error", format!("Failed to open {side}: {err}")))?;
+    read_csv_reader(file, side, &path.display().to_string())
 }
 
 fn comparison_columns(
@@ -239,14 +249,13 @@ fn row_to_value(row: &Row) -> Value {
     Value::Object(value)
 }
 
-pub fn diff_csv_files(
-    a_path: &Path,
-    b_path: &Path,
+fn diff_rows(
+    a_header: Vec<String>,
+    a_rows: Vec<IndexedRow>,
+    b_header: Vec<String>,
+    b_rows: Vec<IndexedRow>,
     options: &DiffOptions,
 ) -> Result<Vec<Value>, DiffError> {
-    let (a_header, a_rows) = read_csv(a_path, "A")?;
-    let (b_header, b_rows) = read_csv(b_path, "B")?;
-
     let compare_columns = comparison_columns(&a_header, &b_header, options.header_mode)?;
 
     for key_column in &options.key_columns {
@@ -362,6 +371,26 @@ pub fn diff_csv_files(
     Ok(events)
 }
 
+pub fn diff_csv_files(
+    a_path: &Path,
+    b_path: &Path,
+    options: &DiffOptions,
+) -> Result<Vec<Value>, DiffError> {
+    let (a_header, a_rows) = read_csv(a_path, "A")?;
+    let (b_header, b_rows) = read_csv(b_path, "B")?;
+    diff_rows(a_header, a_rows, b_header, b_rows, options)
+}
+
+pub fn diff_csv_bytes(
+    a_bytes: &[u8],
+    b_bytes: &[u8],
+    options: &DiffOptions,
+) -> Result<Vec<Value>, DiffError> {
+    let (a_header, a_rows) = read_csv_reader(std::io::Cursor::new(a_bytes), "A", "<memory:a>")?;
+    let (b_header, b_rows) = read_csv_reader(std::io::Cursor::new(b_bytes), "B", "<memory:b>")?;
+    diff_rows(a_header, a_rows, b_header, b_rows, options)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -440,5 +469,28 @@ mod tests {
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn diff_csv_bytes_matches_file_mode() {
+        let options = default_options();
+        let a = b"id,name\n1,Alice\n2,Bob\n";
+        let b = b"id,name\n1,Alicia\n3,Cara\n";
+
+        let events = diff_csv_bytes(a, b, &options).expect("byte-mode diff should succeed");
+        let types: Vec<String> = events
+            .iter()
+            .map(|event| {
+                event
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .unwrap_or("<missing>")
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            types,
+            vec!["schema", "changed", "removed", "added", "stats"]
+        );
     }
 }

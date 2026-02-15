@@ -4,7 +4,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 
 ## Current State
 
-- Active phase: Phase 2 start (Rust parity work)
+- Active phase: Phase 4 start (web bootstrap)
 - Fixture suite: 18 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
@@ -30,6 +30,12 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - partitioned engine now emits globally key-sorted events and passes fixtures at `PARTITIONS=4`
   - cancellation checks are active during partitioning + partition diff traversal
   - progress events include coarse partition phases: `partitioning`, `diff_partitions`, `emit_events`
+- Web implementation (`diffly-web`):
+  - Next.js app seeded from DiffyData-style UX
+  - worker-first compare architecture (main thread stays responsive)
+  - small-file Rust/WASM path (`diffly-rust/diffly-wasm`)
+  - large-file streaming-worker fallback with bounded sample rendering
+  - wasm package generated into `diffly-web/src/wasm/pkg` via `make wasm-build-web`
 
 ## Quick Resume Checklist
 
@@ -37,10 +43,12 @@ Use this file to transfer context between sessions/agents with minimal loss.
 2. Read `docs/STATUS.md` and `docs/DECISIONS.md`
 3. Run `make test-spec`
 4. Run `make test-spec-rust`
-5. If touching rules/instructions:
+5. Run `make web-typecheck`
+6. Run `npm --prefix diffly-web run build`
+7. If touching rules/instructions:
    - edit `.rulesync/rules/general.md`
    - run `make rules-generate`
-6. After any change, run relevant validation commands and update `docs/STATUS.md`
+8. After any change, run relevant validation commands and update `docs/STATUS.md`
 
 ## Delivery Rules
 
