@@ -194,6 +194,11 @@ async function parseCsvStreaming(options: StreamOptions): Promise<void> {
             return;
           }
 
+          // Align with rust-core behavior for common CSV exports that contain blank spacer lines.
+          if (row.length === 1 && (row[0] ?? "").trim() === "") {
+            return;
+          }
+
           if (!headerSeen) {
             const header = [...row.map((cell) => cell ?? "")];
             onHeader(header);
