@@ -86,6 +86,9 @@ Last updated: 2026-02-15
   - worker now uses partitioned IndexedDB spill for large input totals
   - worker falls back to in-memory streaming mode only when IndexedDB is unavailable
   - fixed sorted-header signature comparison in web streaming mode
+- Added detailed manual test plan doc:
+  - `docs/MANUAL_TEST_PLAN.md`
+  - covers semantic fixtures, CLI modes, web worker/WASM paths, large-file survivability, and regression checklist
 
 ## In Progress
 

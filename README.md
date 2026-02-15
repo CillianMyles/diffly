@@ -18,6 +18,8 @@ The end-state is:
 - Phase 3 (`diffly-cli`): complete
 - Phase 4 (`diffly-web`): MVP complete (worker + wasm + streaming fallback)
 
+Manual validation guide: `docs/MANUAL_TEST_PLAN.md`
+
 ---
 
 ## Why diffly exists
