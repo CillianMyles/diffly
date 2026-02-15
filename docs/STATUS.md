@@ -82,6 +82,10 @@ Last updated: 2026-02-15
   - `--format jsonl|json|summary`
   - `--out <path>`
   - `make diff-rust ... FORMAT=... OUT=...`
+- Added large-file web spill path:
+  - worker now uses partitioned IndexedDB spill for large input totals
+  - worker falls back to in-memory streaming mode only when IndexedDB is unavailable
+  - fixed sorted-header signature comparison in web streaming mode
 
 ## In Progress
 

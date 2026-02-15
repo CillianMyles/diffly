@@ -34,9 +34,10 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - Next.js app seeded from DiffyData-style UX
   - worker-first compare architecture (main thread stays responsive)
   - small-file Rust/WASM path (`diffly-rust/diffly-wasm`)
-  - large-file streaming-worker fallback with bounded sample rendering
+  - large-file partitioned IndexedDB spill path with in-memory fallback when unavailable
   - wasm package generated into `diffly-web/src/wasm/pkg` via `make wasm-build-web`
   - fixed streaming worker hang and blank-line parse mismatch for non-WASM mode
+  - sorted-header comparison now uses canonical column signatures in web worker path
 - CLI implementation:
   - supports `jsonl` (default), `json`, and `summary` output modes
   - supports `--out <path>` for file output

@@ -157,6 +157,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: phase-3 CLI needs both machine-consumable and quick-human inspection workflows.
 
+### D-025 Browser large-file spill strategy
+
+- Decision: for large browser input sizes, prefer a partitioned IndexedDB spill path in the worker, with in-memory streaming fallback only when IndexedDB is unavailable.
+- Status: active.
+- Rationale: reduces peak memory pressure for large CSV comparisons and improves page survivability.
+
 ## Update Protocol
 
 When a new decision is made:

@@ -420,7 +420,7 @@ make diff-rust A=a.csv B=b.csv KEY=id FORMAT=json OUT=/tmp/diff.json
 
 - runs comparison in a dedicated Web Worker (main thread stays responsive)
 - uses Rust/WASM path for small files
-- uses streaming worker fallback for larger files to avoid `File.text()` full-buffer loading in the UI thread
+- uses partitioned IndexedDB spill path for larger files (and falls back to in-memory worker mode if IndexedDB is unavailable)
 - supports cancel + phase progress frames in the UI
 
 Install and run:
