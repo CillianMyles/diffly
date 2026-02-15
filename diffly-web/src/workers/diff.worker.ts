@@ -146,51 +146,97 @@ async function parseCsvStreaming(options: StreamOptions): Promise<void> {
   let lastProgressTs = 0;
 
   await new Promise<void>((resolve, reject) => {
+    let settled = false;
+
+    const fail = (error: CsvError, parser?: Papa.Parser) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (parser) {
+        parser.abort();
+      }
+      reject(error);
+    };
+
     Papa.parse<string[]>(file, {
       header: false,
       skipEmptyLines: false,
       dynamicTyping: false,
       worker: false,
       step: (result, parser) => {
+        if (settled) {
+          return;
+        }
+
         if (isCancelled()) {
-          parser.abort();
-          reject(toError("cancelled", "Operation cancelled"));
+          fail(toError("cancelled", "Operation cancelled"), parser);
           return;
         }
 
-        rowNumber += 1;
-        const row = result.data;
-        if (!Array.isArray(row)) {
-          reject(toError("csv_parse_error", `Failed to parse ${side}: invalid row shape`));
-          parser.abort();
-          return;
-        }
+        try {
+          if (result.errors && result.errors.length > 0) {
+            const first = result.errors[0];
+            fail(
+              toError(
+                "csv_parse_error",
+                `Failed to parse ${side} at CSV row ${first.row ?? "?"}: ${first.message}`,
+              ),
+              parser,
+            );
+            return;
+          }
 
-        if (!headerSeen) {
-          const header = [...row.map((cell) => cell ?? "")];
-          onHeader(header);
-          headerSeen = true;
-        } else {
-          onRow(rowNumber, row.map((cell) => cell ?? ""));
-        }
+          rowNumber += 1;
+          const row = result.data;
+          if (!Array.isArray(row)) {
+            fail(toError("csv_parse_error", `Failed to parse ${side}: invalid row shape`), parser);
+            return;
+          }
 
-        const cursor = typeof result.meta.cursor === "number" ? result.meta.cursor : 0;
-        const now = Date.now();
-        if (now - lastProgressTs >= 120) {
-          onProgress(cursor);
-          lastProgressTs = now;
+          if (!headerSeen) {
+            const header = [...row.map((cell) => cell ?? "")];
+            onHeader(header);
+            headerSeen = true;
+          } else {
+            onRow(rowNumber, row.map((cell) => cell ?? ""));
+          }
+
+          const cursor = typeof result.meta.cursor === "number" ? result.meta.cursor : 0;
+          const now = Date.now();
+          if (now - lastProgressTs >= 120) {
+            onProgress(cursor);
+            lastProgressTs = now;
+          }
+        } catch (error) {
+          const typed = error as Partial<CsvError>;
+          fail(
+            toError(
+              typeof typed.code === "string" ? typed.code : "csv_parse_error",
+              typeof typed.message === "string"
+                ? typed.message
+                : `Failed to parse ${side}: unexpected error`,
+            ),
+            parser,
+          );
         }
       },
       complete: () => {
-        if (!headerSeen) {
-          reject(toError("empty_file", `${side} file is empty: ${file.name}`));
+        if (settled) {
           return;
         }
-        onProgress(file.size);
+        if (!headerSeen) {
+          fail(toError("empty_file", `${side} file is empty: ${file.name}`));
+          return;
+        }
+        settled = true;
+        try {
+          onProgress(file.size);
+        } catch {}
         resolve();
       },
       error: (error) => {
-        reject(toError("csv_parse_error", `Failed to parse ${side}: ${error.message}`));
+        fail(toError("csv_parse_error", `Failed to parse ${side}: ${error.message}`));
       },
     });
   });

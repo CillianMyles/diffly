@@ -171,6 +171,16 @@ export function DiffWorkbench() {
       setSamples(message.samples);
     };
 
+    worker.onerror = (event) => {
+      setState("error");
+      setError(`Worker crashed: ${event.message}`);
+    };
+
+    worker.onmessageerror = () => {
+      setState("error");
+      setError("Worker message deserialization failed.");
+    };
+
     return () => {
       worker.terminate();
       workerRef.current = null;
