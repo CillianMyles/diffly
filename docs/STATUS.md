@@ -89,6 +89,9 @@ Last updated: 2026-02-15
 - Added detailed manual test plan doc:
   - `docs/MANUAL_TEST_PLAN.md`
   - covers semantic fixtures, CLI modes, web worker/WASM paths, large-file survivability, and regression checklist
+- Added true file drag/drop support in `diffly-web` upload cards (including external Finder drags).
+- Moved web CI job to run after Python + Rust jobs (`needs` ordering) so web checks run last.
+- Added JS/Next/web guardrails to project rules and regenerated rule targets.
 
 ## In Progress
 

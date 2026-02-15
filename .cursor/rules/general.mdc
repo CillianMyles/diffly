@@ -47,6 +47,14 @@ Prefer boring, idiomatic solutions. Match existing patterns. Avoid premature opt
 ## Anti-Patterns
 Do not rewrite files unnecessarily. No formatting-only changes. No “for later” abstractions. Respect brownfield context.
 
+## JS/Next/Web Guardrails
+- Keep CSV compare work in worker/WASM paths; avoid main-thread parsing or diff loops.
+- Avoid `File.text()` and other whole-file buffering for large-file paths.
+- Keep browser compare logic deterministic and aligned with `diffly-spec/SPEC.md`.
+- Keep message contracts typed and centralized (`diffly-web/src/lib/protocol.ts`).
+- For UX safety: surface worker errors, keep cancel responsive, and keep progress phase updates flowing.
+- Prefer additive UI changes over framework churn; match existing Next/React patterns in `diffly-web`.
+
 ## Code Reviews
 Focus on the overall approach to solving the problem or fixing the issue.  
 Prioritize correctness, clarity, and intent.  
