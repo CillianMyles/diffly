@@ -1,6 +1,6 @@
-![Diffly high-performance CSV comparison overview](docs/assets/diffly-info.png)
-
 # diffly
+
+![Diffly high-performance CSV comparison overview](docs/assets/diffly-info.png)
 
 **Diff CSVs at any size, locally, with progress — no server required.**
 
