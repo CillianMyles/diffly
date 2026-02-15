@@ -11,6 +11,13 @@ The end-state is:
 - a **web app that runs entirely in the browser** (no backend),
 - optional **desktop/mobile apps** using the same engine.
 
+## Phase status
+
+- Phase 1 (`diffly-python`): complete
+- Phase 2 (`diffly-rust` engine): complete
+- Phase 3 (`diffly-cli`): complete
+- Phase 4 (`diffly-web`): MVP complete (worker + wasm + streaming fallback)
+
 ---
 
 ## Why diffly exists
@@ -359,7 +366,7 @@ python3 diffly-python/diffly.py --a a.csv --b b.csv --key id --key region
 The command emits JSONL events (`schema`, row events, `stats`) to stdout.
 Current semantics are strict string comparison with hard errors for duplicate column names, missing key columns, and missing key values.
 
-### Rust conformance (Phase 2 start)
+### Rust engine (Phase 2 complete)
 
 Rust workspace now lives in `diffly-rust/` with:
 
@@ -389,7 +396,25 @@ make diff-rust A=a.csv B=b.csv KEY=id EMIT_PROGRESS=1
 
 In partitioned mode, progress phases currently emit as: `partitioning` -> `diff_partitions` -> `emit_events`.
 
-### Web app bootstrap (Phase 4 start)
+### Rust CLI (Phase 3 complete)
+
+Rust CLI supports multiple output modes now:
+
+```bash
+# default JSONL stream (event-per-line)
+make diff-rust A=a.csv B=b.csv KEY=id
+
+# single JSON array output
+make diff-rust A=a.csv B=b.csv KEY=id FORMAT=json
+
+# human-readable summary table
+make diff-rust A=a.csv B=b.csv KEY=id FORMAT=summary
+
+# write any mode to file
+make diff-rust A=a.csv B=b.csv KEY=id FORMAT=json OUT=/tmp/diff.json
+```
+
+### Web app (Phase 4 MVP complete)
 
 `diffly-web/` is now seeded from the DiffyData-style UX and wired to `diffly` runtime semantics:
 
@@ -453,8 +478,6 @@ To preserve execution context across sessions/agents:
 - `docs/HANDOFF.md` provides a quick resume checklist.
 
 Next steps:
-1. Continue expanding fixture coverage for CSV edge cases.
-2. Keep Python reference + fixtures as the source of truth for semantics.
-3. Start `diffly-rust` and drive parity using the same fixtures.
-4. Add richer CLI UX and output modes.
-5. Build WASM worker + web UI on top of parity-tested semantics.
+1. Add OPFS/IndexedDB spill backend integration for browser large-file path.
+2. Add browser-level large-file regression automation (100MB+ behavior checks).
+3. Continue expanding fixture coverage for CSV edge cases.

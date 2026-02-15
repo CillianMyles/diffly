@@ -20,7 +20,8 @@ pub fn diff_csv_bytes_json(
         return Err(JsValue::from_str("At least one key column is required"));
     }
 
-    let header_mode = HeaderMode::parse(header_mode).map_err(|err| JsValue::from_str(&err.message))?;
+    let header_mode =
+        HeaderMode::parse(header_mode).map_err(|err| JsValue::from_str(&err.message))?;
 
     let options = DiffOptions {
         key_columns,
@@ -28,9 +29,8 @@ pub fn diff_csv_bytes_json(
         emit_unchanged,
     };
 
-    let events = diff_csv_bytes(a_bytes, b_bytes, &options).map_err(|err| {
-        JsValue::from_str(&format!("{}: {}", err.code, err.message))
-    })?;
+    let events = diff_csv_bytes(a_bytes, b_bytes, &options)
+        .map_err(|err| JsValue::from_str(&format!("{}: {}", err.code, err.message)))?;
 
     serde_json::to_string(&events)
         .map_err(|err| JsValue::from_str(&format!("serialize_error: {err}")))

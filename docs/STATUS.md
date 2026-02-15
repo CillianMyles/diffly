@@ -4,9 +4,9 @@ Last updated: 2026-02-15
 
 ## Snapshot
 
-- Phase: Phase 4 started (`diffly-web` bootstrap with worker + wasm path)
+- Phase: Phase 4 MVP complete (`diffly-web` worker + wasm)
 - Branch: `main`
-- Last pushed commit at time of this update: `04cbf25`
+- Last pushed commit at time of this update: `37f3f47`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 18
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -78,11 +78,15 @@ Last updated: 2026-02-15
   - `make web-typecheck`
   - `make wasm-build-web`
 - Added CI web app checks (`npm ci`, typecheck, build).
+- Added Rust CLI output modes and file output:
+  - `--format jsonl|json|summary`
+  - `--out <path>`
+  - `make diff-rust ... FORMAT=... OUT=...`
 
 ## In Progress
 
 - Keep Rust/Python fixture parity stable while adding browser runtime behavior.
-- Harden web large-file behavior with additional fixture-like browser tests and memory telemetry.
+- Harden web large-file behavior with OPFS/IndexedDB spill and browser-scale regressions.
 
 ## Next
 

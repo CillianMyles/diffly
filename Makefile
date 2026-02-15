@@ -9,7 +9,7 @@ help:
 	@echo "    make test-spec-rust        Run diffly spec fixtures against Rust core"
 	@echo "    make test-spec-rust-engine [PARTITIONS=N]  Run fixtures against Rust engine path (default N=1)"
 	@echo "    make diff A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted]  Run keyed CSV diff"
-	@echo "    make diff-rust A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1]  Run Rust keyed CSV diff"
+	@echo "    make diff-rust A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary] [OUT=path]  Run Rust keyed CSV diff"
 	@echo "    make web-install           Install diffly-web dependencies"
 	@echo "    make web-dev               Run diffly-web dev server"
 	@echo "    make web-typecheck         Type-check diffly-web"
@@ -129,6 +129,14 @@ diff-rust:
 	if [ -n "$(NO_PARTITIONS)" ]; then \
 		NO_PARTITIONS_ARG="--no-partitions"; \
 	fi; \
+	FORMAT_ARG=""; \
+	if [ -n "$(FORMAT)" ]; then \
+		FORMAT_ARG="--format $(FORMAT)"; \
+	fi; \
+	OUT_ARG=""; \
+	if [ -n "$(OUT)" ]; then \
+		OUT_ARG="--out $(OUT)"; \
+	fi; \
 	CARGO_BIN="$$(command -v cargo || true)"; \
 	RUSTUP_BIN="$$(command -v rustup || true)"; \
 	if [ -z "$$RUSTUP_BIN" ] && [ -x "/opt/homebrew/opt/rustup/bin/rustup" ]; then \
@@ -142,7 +150,7 @@ diff-rust:
 		exit 2; \
 	fi; \
 	export PATH="$$(dirname "$$CARGO_BIN"):$$PATH"; \
-	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-cli -- --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}" $$PROGRESS_ARG $$PARTITION_ARG $$NO_PARTITIONS_ARG
+	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-cli -- --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}" $$PROGRESS_ARG $$PARTITION_ARG $$NO_PARTITIONS_ARG $$FORMAT_ARG $$OUT_ARG
 
 .PHONY: web-install web-dev web-typecheck wasm-build-web
 

@@ -148,6 +148,15 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: avoids DOM/memory blowups on very large CSV comparisons while still surfacing useful inspection data.
 
+### D-024 Rust CLI output modes
+
+- Decision: Rust CLI supports three output modes:
+  - `jsonl` (default, event stream)
+  - `json` (single array)
+  - `summary` (human-readable stats table)
+- Status: active.
+- Rationale: phase-3 CLI needs both machine-consumable and quick-human inspection workflows.
+
 ## Update Protocol
 
 When a new decision is made:

@@ -4,7 +4,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 
 ## Current State
 
-- Active phase: Phase 4 start (web bootstrap)
+- Active phase: Phase 4 MVP complete
 - Fixture suite: 18 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
@@ -36,6 +36,10 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - small-file Rust/WASM path (`diffly-rust/diffly-wasm`)
   - large-file streaming-worker fallback with bounded sample rendering
   - wasm package generated into `diffly-web/src/wasm/pkg` via `make wasm-build-web`
+  - fixed streaming worker hang and blank-line parse mismatch for non-WASM mode
+- CLI implementation:
+  - supports `jsonl` (default), `json`, and `summary` output modes
+  - supports `--out <path>` for file output
 
 ## Quick Resume Checklist
 
