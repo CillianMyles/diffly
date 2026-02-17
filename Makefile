@@ -193,4 +193,4 @@ rules-install:
 	brew install rulesync
 
 rules-generate:
-	rulesync generate -f rules -t agentsmd,claudecode,cursor,codexcli,opencode,copilot
+	rulesync generate --delete -f rules -t agentsmd,agentskills,claudecode,cursor,codexcli,opencode
