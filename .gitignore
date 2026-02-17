@@ -32,3 +32,4 @@ diffly-web/out/
 # Firebase local state/logs
 .firebase/
 firebase-debug.log
+.firebaserc
