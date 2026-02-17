@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-02-15
+Last updated: 2026-02-17
 
 ## Snapshot
 
@@ -92,6 +92,10 @@ Last updated: 2026-02-15
 - Added true file drag/drop support in `diffly-web` upload cards (including external Finder drags).
 - Moved web CI job to run after Python + Rust jobs (`needs` ordering) so web checks run last.
 - Added JS/Next/web guardrails to project rules and regenerated rule targets.
+- Added Firebase Hosting static client deployment setup for `diffly-web`:
+  - Next config now exports static output (`diffly-web/out`)
+  - root `firebase.json` serves static assets with SPA rewrites
+  - deployment steps documented in `diffly-web/README.md`
 
 ## In Progress
 
@@ -114,6 +118,7 @@ Last updated: 2026-02-15
 - `make test-spec-rust-engine PARTITIONS=4`
 - `make web-typecheck`
 - `npm --prefix diffly-web run build`
+- `firebase deploy --only hosting`
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
 

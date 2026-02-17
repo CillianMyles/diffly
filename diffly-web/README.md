@@ -10,6 +10,26 @@ make wasm-build-web
 make web-dev
 ```
 
+## Firebase Hosting (static client only)
+
+This app can be deployed as a static export with no Next.js server runtime.
+
+From repo root:
+
+```bash
+make wasm-build-web
+npm --prefix diffly-web run build
+firebase login
+firebase use <your-firebase-project-id>
+firebase deploy --only hosting
+```
+
+Notes:
+
+- Static export output is generated at `diffly-web/out`.
+- Firebase Hosting config is in `firebase.json` at repo root.
+- `.firebaserc` is intentionally local/user-specific and should be created by `firebase use`.
+
 ## Large-file safety model
 
 - Compare runs in a dedicated Web Worker (main thread remains interactive).
