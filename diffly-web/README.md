@@ -30,6 +30,18 @@ Notes:
 - Firebase Hosting config is in `firebase.json` at repo root.
 - `.firebaserc` is intentionally local/user-specific and should be created by `firebase use`.
 
+## GitHub Actions Auto Deploy
+
+Production deploy is automated in `.github/workflows/ci.yml`:
+
+- Triggered on push to `main`, after all CI checks pass.
+- Also supports manual run via `workflow_dispatch` (Actions tab), and deploys only when the selected ref is `main`.
+
+Required repository secrets:
+
+- `FIREBASE_PROJECT_ID`: your Firebase project id.
+- `FIREBASE_TOKEN`: CI token from `firebase login:ci`.
+
 ## Large-file safety model
 
 - Compare runs in a dedicated Web Worker (main thread remains interactive).

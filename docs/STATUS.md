@@ -96,6 +96,10 @@ Last updated: 2026-02-17
   - Next config now exports static output (`diffly-web/out`)
   - root `firebase.json` serves static assets with SPA rewrites
   - deployment steps documented in `diffly-web/README.md`
+- Added CI/CD deploy automation for Firebase Hosting:
+  - `.github/workflows/ci.yml` now supports `workflow_dispatch`
+  - production deploy job runs on `main` after all checks pass
+  - deploy requires GitHub secrets `FIREBASE_PROJECT_ID` and `FIREBASE_TOKEN`
 
 ## In Progress
 
@@ -119,6 +123,7 @@ Last updated: 2026-02-17
 - `make web-typecheck`
 - `npm --prefix diffly-web run build`
 - `firebase deploy --only hosting`
+- GitHub Actions: run `CI` workflow (`push main` or `workflow_dispatch`) and confirm deploy job succeeds
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
 
