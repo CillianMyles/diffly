@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-02-17
+Last updated: 2026-02-18
 
 ## Snapshot
 
@@ -8,7 +8,7 @@ Last updated: 2026-02-17
 - Branch: `main`
 - Last pushed commit at time of this update: `37f3f47`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
-- Fixture count: 18
+- Fixture count: 19
 - Autonomy mode: active (continue until done or hard-blocked)
 
 ## Completed
@@ -100,6 +100,21 @@ Last updated: 2026-02-17
   - `.github/workflows/ci.yml` now supports `workflow_dispatch`
   - production deploy job runs on `main` after all checks pass
   - deploy requires GitHub secrets `FIREBASE_PROJECT_ID` and `FIREBASE_TOKEN`
+- Added positional compare mode across Python/Rust/web with default mode selection:
+  - positional is now the default when no keys are provided
+  - keyed remains available when key columns are provided
+  - positional row events include `row_index` instead of `key`
+- Added positional fixture coverage (`positional_basic_add_remove_change`) and enabled conformance runners for both `keyed` and `positional` fixtures.
+- Updated CLI surfaces:
+  - Python CLI: `--key` is optional, added `--compare-by-keys`
+  - Rust CLI: `--key` is optional, added `--compare-by-keys`
+  - `make diff` / `make diff-rust` no longer require keys
+- Updated web app compare UX:
+  - default compare mode is positional
+  - keyed compare is opt-in via "Compare by keys"
+  - sample rendering supports either keyed identity or positional `row_index`
+- Rebuilt Rust WASM package for web after positional support in `diffly-wasm`.
+- Updated CI smoke checks to include positional default-mode CLI runs for both Python and Rust.
 
 ## In Progress
 
@@ -126,6 +141,8 @@ Last updated: 2026-02-17
 - GitHub Actions: run `CI` workflow (`push main` or `workflow_dispatch`) and confirm deploy job succeeds
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
+- `python3 diffly-python/diffly.py --a diffly-spec/fixtures/positional_basic_add_remove_change/a.csv --b diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`
+- `make diff-rust A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`
 
 ## Update Protocol
 

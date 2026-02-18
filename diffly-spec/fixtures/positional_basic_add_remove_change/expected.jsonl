@@ -1,0 +1,5 @@
+{"type":"schema","columns_a":["id","name"],"columns_b":["id","name"]}
+{"type":"changed","row_index":2,"changed":["name"],"before":{"id":"1","name":"Alice"},"after":{"id":"1","name":"Alicia"},"delta":{"name":{"from":"Alice","to":"Alicia"}}}
+{"type":"changed","row_index":4,"changed":["id","name"],"before":{"id":"3","name":"Cara"},"after":{"id":"4","name":"Dan"},"delta":{"id":{"from":"3","to":"4"},"name":{"from":"Cara","to":"Dan"}}}
+{"type":"added","row_index":5,"row":{"id":"5","name":"Eve"}}
+{"type":"stats","rows_total_compared":3,"rows_added":1,"rows_removed":0,"rows_changed":2,"rows_unchanged":1}

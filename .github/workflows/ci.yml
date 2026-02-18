@@ -43,6 +43,12 @@ jobs:
             --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
             --key id > /tmp/diffly-smoke.jsonl
 
+      - name: Run positional CLI smoke test (default mode)
+        run: |
+          python diffly-python/diffly.py \
+            --a diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+            --b diffly-spec/fixtures/positional_basic_add_remove_change/b.csv > /tmp/diffly-smoke-positional.jsonl
+
       - name: Verify smoke output has schema and stats
         run: |
           python - <<'PY'
@@ -57,6 +63,15 @@ jobs:
           assert lines, "Smoke output is empty"
           assert lines[0].get("type") == "schema", "First event must be schema"
           assert lines[-1].get("type") == "stats", "Last event must be stats"
+
+          positional_lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-smoke-positional.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert positional_lines, "Positional smoke output is empty"
+          assert positional_lines[0].get("type") == "schema", "First positional event must be schema"
+          assert positional_lines[-1].get("type") == "stats", "Last positional event must be stats"
           PY
 
   rust-conformance:
@@ -96,6 +111,12 @@ jobs:
             B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
             KEY=id > /tmp/diffly-rust-smoke.jsonl
 
+      - name: Run Rust positional CLI smoke test (default mode)
+        run: |
+          make diff-rust \
+            A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+            B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv > /tmp/diffly-rust-smoke-positional.jsonl
+
       - name: Verify Rust smoke output has schema and stats
         run: |
           python3 - <<'PY'
@@ -110,6 +131,15 @@ jobs:
           assert lines, "Rust smoke output is empty"
           assert lines[0].get("type") == "schema", "First event must be schema"
           assert lines[-1].get("type") == "stats", "Last event must be stats"
+
+          positional_lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-rust-smoke-positional.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert positional_lines, "Rust positional smoke output is empty"
+          assert positional_lines[0].get("type") == "schema", "First positional event must be schema"
+          assert positional_lines[-1].get("type") == "stats", "Last positional event must be stats"
           PY
 
       - name: Run Rust CLI partitioned smoke test

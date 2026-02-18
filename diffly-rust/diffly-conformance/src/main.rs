@@ -24,17 +24,41 @@ fn load_jsonl(path: &Path) -> Result<Vec<Value>, String> {
 }
 
 fn parse_options(config: &Value) -> Result<DiffOptions, DiffError> {
-    let key_columns = config
-        .get("key_columns")
-        .and_then(Value::as_array)
-        .ok_or_else(|| DiffError::new("invalid_config", "Fixture config missing key_columns"))?
-        .iter()
-        .map(|v| {
-            v.as_str()
-                .map(ToString::to_string)
-                .ok_or_else(|| DiffError::new("invalid_config", "key_columns must be strings"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let mode = config
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("keyed");
+    let key_columns = match mode {
+        "keyed" => {
+            let columns = config
+                .get("key_columns")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    DiffError::new("invalid_config", "Fixture config missing key_columns")
+                })?
+                .iter()
+                .map(|v| {
+                    v.as_str().map(ToString::to_string).ok_or_else(|| {
+                        DiffError::new("invalid_config", "key_columns must be strings")
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            if columns.is_empty() {
+                return Err(DiffError::new(
+                    "invalid_config",
+                    "key_columns must be non-empty in keyed mode",
+                ));
+            }
+            columns
+        }
+        "positional" => Vec::new(),
+        other => {
+            return Err(DiffError::new(
+                "invalid_mode",
+                format!("Unsupported mode: {other}"),
+            ))
+        }
+    };
 
     let header_mode = config
         .get("header_mode")
@@ -138,8 +162,11 @@ fn run_case(case_dir: &Path, partition_count: Option<usize>) -> (bool, String) {
         Err(err) => return (false, format!("failed to parse config: {err}")),
     };
 
-    let mode = config.get("mode").and_then(Value::as_str).unwrap_or("");
-    if mode != "keyed" {
+    let mode = config
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("keyed");
+    if mode != "keyed" && mode != "positional" {
         return (false, format!("unsupported mode in fixture: {mode}"));
     }
 

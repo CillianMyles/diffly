@@ -16,10 +16,6 @@ pub fn diff_csv_bytes_json(
         .map(ToString::to_string)
         .collect();
 
-    if key_columns.is_empty() {
-        return Err(JsValue::from_str("At least one key column is required"));
-    }
-
     let header_mode =
         HeaderMode::parse(header_mode).map_err(|err| JsValue::from_str(&err.message))?;
 

@@ -565,11 +565,19 @@ function extractSummaryAndSamples(
     }
 
     if ((type === "added" || type === "removed" || type === "changed") && samples.length < maxSampleEvents) {
+      const keyCandidate = event.key;
+      const key =
+        keyCandidate && typeof keyCandidate === "object" && !Array.isArray(keyCandidate)
+          ? (keyCandidate as Record<string, string>)
+          : undefined;
+      const rowIndex = typeof event.row_index === "number" ? event.row_index : undefined;
+      const row = event.row as Record<string, string> | undefined;
       samples.push({
         type,
-        key: (event.key as Record<string, string>) ?? {},
-        before: event.before as Record<string, string> | undefined,
-        after: event.after as Record<string, string> | undefined,
+        key,
+        rowIndex,
+        before: (event.before as Record<string, string> | undefined) ?? (type === "removed" ? row : undefined),
+        after: (event.after as Record<string, string> | undefined) ?? (type === "added" ? row : undefined),
       });
     }
   }
@@ -600,7 +608,9 @@ async function tryWasmCompare(request: CompareRequest): Promise<{ summary: DiffS
   return extractSummaryAndSamples(events, request.maxSampleEvents);
 }
 
-async function runStreamingCompare(request: CompareRequest): Promise<{ summary: DiffSummary; samples: SampleEvent[] }> {
+async function runStreamingCompareKeyed(
+  request: CompareRequest,
+): Promise<{ summary: DiffSummary; samples: SampleEvent[] }> {
   const summary: DiffSummary = {
     rows_total_compared: 0,
     rows_added: 0,
@@ -792,6 +802,151 @@ async function runStreamingCompare(request: CompareRequest): Promise<{ summary: 
   }
 
   return { summary, samples };
+}
+
+async function runStreamingComparePositional(
+  request: CompareRequest,
+): Promise<{ summary: DiffSummary; samples: SampleEvent[] }> {
+  const summary: DiffSummary = {
+    rows_total_compared: 0,
+    rows_added: 0,
+    rows_removed: 0,
+    rows_changed: 0,
+    rows_unchanged: 0,
+  };
+  const samples: SampleEvent[] = [];
+
+  let headerA: string[] = [];
+  let headerB: string[] = [];
+  let compareIndexesA: number[] = [];
+  let compareIndexesB: number[] = [];
+  const rowsA: Array<{ rowIndex: number; row: string[] }> = [];
+
+  const isCancelled = () => cancelledRequestIds.has(request.requestId);
+
+  post({
+    type: "progress",
+    requestId: request.requestId,
+    phase: "partitioning",
+    done: 0,
+    total: request.aFile.size + request.bFile.size,
+  });
+
+  await parseCsvStreaming({
+    file: request.aFile,
+    side: "A",
+    isCancelled,
+    onHeader: (header) => {
+      normalizeHeader(header);
+      validateHeader(header, "A");
+      headerA = header;
+    },
+    onRow: (rowIndex, row) => {
+      if (row.length !== headerA.length) {
+        throw toError(
+          "row_width_mismatch",
+          `Row width mismatch in A at CSV row ${rowIndex}: expected ${headerA.length}, got ${row.length}`,
+        );
+      }
+      rowsA.push({ rowIndex, row });
+    },
+    onProgress: (cursor) => {
+      post({
+        type: "progress",
+        requestId: request.requestId,
+        phase: "partitioning",
+        done: Math.min(cursor, request.aFile.size),
+        total: request.aFile.size + request.bFile.size,
+      });
+    },
+  });
+
+  let seenBRows = 0;
+  await parseCsvStreaming({
+    file: request.bFile,
+    side: "B",
+    isCancelled,
+    onHeader: (header) => {
+      normalizeHeader(header);
+      validateHeader(header, "B");
+      headerB = header;
+      const compareCols = comparisonColumns(headerA, headerB, request.headerMode);
+      compareIndexesA = columnIndexes(headerA, compareCols);
+      compareIndexesB = columnIndexes(headerB, compareCols);
+    },
+    onRow: (rowIndexB, rowB) => {
+      if (rowB.length !== headerB.length) {
+        throw toError(
+          "row_width_mismatch",
+          `Row width mismatch in B at CSV row ${rowIndexB}: expected ${headerB.length}, got ${rowB.length}`,
+        );
+      }
+
+      const idx = seenBRows;
+      seenBRows += 1;
+      const rowIndex = idx + 2;
+      const entryA = rowsA[idx];
+      if (!entryA) {
+        summary.rows_added += 1;
+        if (samples.length < request.maxSampleEvents) {
+          samples.push({
+            type: "added",
+            rowIndex,
+            after: rowToObject(headerB, rowB),
+          });
+        }
+        return;
+      }
+
+      summary.rows_total_compared += 1;
+      const sigA = rowSignature(entryA.row, compareIndexesA);
+      const sigB = rowSignature(rowB, compareIndexesB);
+      if (sigA === sigB) {
+        summary.rows_unchanged += 1;
+        return;
+      }
+
+      summary.rows_changed += 1;
+      if (samples.length < request.maxSampleEvents) {
+        samples.push({
+          type: "changed",
+          rowIndex,
+          before: rowToObject(headerA, entryA.row),
+          after: rowToObject(headerB, rowB),
+        });
+      }
+    },
+    onProgress: (cursor) => {
+      post({
+        type: "progress",
+        requestId: request.requestId,
+        phase: "diff_partitions",
+        done: request.aFile.size + Math.min(cursor, request.bFile.size),
+        total: request.aFile.size + request.bFile.size,
+      });
+    },
+  });
+
+  for (let idx = seenBRows; idx < rowsA.length; idx += 1) {
+    const rowIndex = idx + 2;
+    summary.rows_removed += 1;
+    if (samples.length < request.maxSampleEvents) {
+      samples.push({
+        type: "removed",
+        rowIndex,
+        before: rowToObject(headerA, rowsA[idx].row),
+      });
+    }
+  }
+
+  return { summary, samples };
+}
+
+async function runStreamingCompare(request: CompareRequest): Promise<{ summary: DiffSummary; samples: SampleEvent[] }> {
+  if (request.keyColumns.length === 0) {
+    return runStreamingComparePositional(request);
+  }
+  return runStreamingCompareKeyed(request);
 }
 
 async function runIndexedDbPartitionedCompare(
@@ -990,6 +1145,9 @@ function shouldTryWasm(request: CompareRequest): boolean {
 }
 
 function shouldUseIndexedDbSpill(request: CompareRequest): boolean {
+  if (request.keyColumns.length === 0) {
+    return false;
+  }
   const total = request.aFile.size + request.bFile.size;
   return total >= LARGE_FILE_IDB_SPILL_THRESHOLD_BYTES && typeof indexedDB !== "undefined";
 }

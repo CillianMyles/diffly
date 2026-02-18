@@ -7,15 +7,23 @@ from diffly_python.reference import DiffError, diff_csv_files
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Diff two CSV files in keyed mode and emit JSONL events.")
+    parser = argparse.ArgumentParser(
+        description="Diff two CSV files and emit JSONL events (positional by default; keyed when keys are provided)."
+    )
     parser.add_argument("--a", required=True, help="Path to CSV A")
     parser.add_argument("--b", required=True, help="Path to CSV B")
     parser.add_argument(
         "--key",
         action="append",
-        required=True,
         dest="key_columns",
-        help="Key column (repeat for composite keys, e.g. --key id --key region)",
+        default=[],
+        help="Key column (repeat for composite keys, e.g. --key id --key region). Enables keyed comparison.",
+    )
+    parser.add_argument(
+        "--compare-by-keys",
+        dest="compare_by_keys",
+        default="",
+        help="Comma-separated key columns. Shorthand that enables keyed comparison.",
     )
     parser.add_argument(
         "--emit-unchanged",
@@ -46,11 +54,17 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
+    key_columns = list(args.key_columns)
+    if args.compare_by_keys:
+        key_columns.extend([value.strip() for value in args.compare_by_keys.split(",") if value.strip()])
+    mode = "keyed" if key_columns else "positional"
+
     try:
         events = diff_csv_files(
             a_path=args.a,
             b_path=args.b,
-            key_columns=args.key_columns,
+            key_columns=key_columns,
+            mode=mode,
             header_mode=args.header_mode,
             emit_unchanged=args.emit_unchanged,
         )

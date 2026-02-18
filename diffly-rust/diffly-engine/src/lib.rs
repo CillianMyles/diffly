@@ -781,7 +781,9 @@ pub fn run_keyed_to_sink_with_config(
     cancel_check: &dyn CancelCheck,
     sink: &mut dyn EventSink,
 ) -> Result<(), EngineError> {
-    let events = if let Some(partitions) = run_config.partition_count {
+    let events = if options.key_columns.is_empty() {
+        diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?
+    } else if let Some(partitions) = run_config.partition_count {
         if run_config.emit_progress {
             emit_progress(sink, "partitioning", 0, 1)?;
         }
@@ -874,6 +876,13 @@ mod tests {
     fn default_options() -> DiffOptions {
         DiffOptions {
             key_columns: vec!["id".to_string()],
+            ..DiffOptions::default()
+        }
+    }
+
+    fn positional_options() -> DiffOptions {
+        DiffOptions {
+            key_columns: Vec::new(),
             ..DiffOptions::default()
         }
     }
@@ -1120,6 +1129,36 @@ mod tests {
         .expect("partitioned run should succeed");
 
         assert_eq!(partitioned_sink.events, default_sink.events);
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn run_positional_mode_uses_core_path_even_when_partitions_enabled() {
+        let a = write_csv("run-positional-a", "id,name\n1,Alice\n2,Bob\n");
+        let b = write_csv("run-positional-b", "id,name\n1,Alicia\n2,Bob\n3,Cara\n");
+
+        let mut sink = CollectSink { events: Vec::new() };
+        run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &positional_options(),
+            &EngineRunConfig {
+                partition_count: Some(4),
+                ..EngineRunConfig::default()
+            },
+            &NeverCancel,
+            &mut sink,
+        )
+        .expect("positional run should succeed");
+
+        let changed = sink
+            .events
+            .iter()
+            .find(|event| event.get("type").and_then(Value::as_str) == Some("changed"))
+            .expect("changed event should be present");
+        assert_eq!(changed.get("row_index").and_then(Value::as_u64), Some(2));
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

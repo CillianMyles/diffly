@@ -8,8 +8,8 @@ help:
 	@echo "    make test-spec             Run diffly spec fixtures"
 	@echo "    make test-spec-rust        Run diffly spec fixtures against Rust core"
 	@echo "    make test-spec-rust-engine [PARTITIONS=N]  Run fixtures against Rust engine path (default N=1)"
-	@echo "    make diff A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted]  Run keyed CSV diff"
-	@echo "    make diff-rust A=... B=... KEY=...|KEYS=... [HEADER_MODE=strict|sorted] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary] [OUT=path]  Run Rust keyed CSV diff"
+	@echo "    make diff A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted]  Run CSV diff (positional default; keyed when keys provided)"
+	@echo "    make diff-rust A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary] [OUT=path]  Run Rust CSV diff (positional default; keyed when keys provided)"
 	@echo "    make web-install           Install diffly-web dependencies"
 	@echo "    make web-dev               Run diffly-web dev server"
 	@echo "    make web-typecheck         Type-check diffly-web"
@@ -69,8 +69,7 @@ test-spec-rust-engine:
 
 diff:
 	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
-		echo "Usage: make diff A=path/to/a.csv B=path/to/b.csv KEY=id [HEADER_MODE=strict|sorted]"; \
-		echo "   or: make diff A=path/to/a.csv B=path/to/b.csv KEYS=id,region [HEADER_MODE=strict|sorted]"; \
+		echo "Usage: make diff A=path/to/a.csv B=path/to/b.csv [KEY=id|KEYS=id,region] [HEADER_MODE=strict|sorted]"; \
 		exit 2; \
 	fi; \
 	KEY_ARGS=""; \
@@ -85,10 +84,6 @@ diff:
 				KEY_ARGS="$$KEY_ARGS --key $$trimmed"; \
 			fi; \
 		done; \
-	fi; \
-	if [ -z "$$KEY_ARGS" ]; then \
-		echo "At least one key is required: KEY=id or KEYS=id,region"; \
-		exit 2; \
 	fi; \
 	python3 diffly-python/diffly.py --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}"
 
@@ -96,8 +91,7 @@ diff:
 
 diff-rust:
 	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
-		echo "Usage: make diff-rust A=path/to/a.csv B=path/to/b.csv KEY=id [HEADER_MODE=strict|sorted]"; \
-		echo "     or make diff-rust A=path/to/a.csv B=path/to/b.csv KEYS=id,region [HEADER_MODE=strict|sorted]"; \
+		echo "Usage: make diff-rust A=path/to/a.csv B=path/to/b.csv [KEY=id|KEYS=id,region] [HEADER_MODE=strict|sorted]"; \
 		exit 2; \
 	fi; \
 	KEY_ARGS=""; \
@@ -112,10 +106,6 @@ diff-rust:
 				KEY_ARGS="$$KEY_ARGS --key $$trimmed"; \
 			fi; \
 		done; \
-	fi; \
-	if [ -z "$$KEY_ARGS" ]; then \
-		echo "At least one key is required: KEY=id or KEYS=id,region"; \
-		exit 2; \
 	fi; \
 	PROGRESS_ARG=""; \
 	if [ -n "$(EMIT_PROGRESS)" ]; then \

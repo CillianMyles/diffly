@@ -19,8 +19,8 @@ make test-spec
 
 `config.json` supports:
 
-- `mode` (currently only `keyed`)
-- `key_columns` (required)
+- `mode` (`keyed` or `positional`)
+- `key_columns` (required for `keyed`, omitted for `positional`)
 - `header_mode` (`strict` default, or `sorted`)
 - `emit_unchanged` (`false` default)
 

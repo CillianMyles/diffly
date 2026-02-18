@@ -23,8 +23,8 @@ def run_case(case_dir: Path):
         return True, "skipped (no config.json)"
 
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    mode = config.get("mode")
-    if mode != "keyed":
+    mode = config.get("mode", "keyed")
+    if mode not in ("keyed", "positional"):
         return False, f"unsupported mode in fixture: {mode}"
 
     expected_jsonl = case_dir / "expected.jsonl"
@@ -37,7 +37,8 @@ def run_case(case_dir: Path):
         actual = diff_csv_files(
             str(case_dir / "a.csv"),
             str(case_dir / "b.csv"),
-            key_columns=config["key_columns"],
+            key_columns=config.get("key_columns", []),
+            mode=mode,
             header_mode=str(config.get("header_mode", "strict")),
             emit_unchanged=bool(config.get("emit_unchanged", False)),
         )

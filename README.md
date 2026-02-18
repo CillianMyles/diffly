@@ -292,12 +292,12 @@ Suggested rule (v1):
 
 diffly should explicitly support multiple comparison modes; `diffly-spec` will define expected output for each.
 
-### `keyed` mode (default when key columns are provided)
+### `keyed` mode (enabled when key columns are provided)
 - external hash-join semantics using key columns
 - supports adds/removes/changes per key
 - must define behavior for duplicate keys (warn/error/group)
 
-### `positional` mode (no key columns, row order matters)
+### `positional` mode (default when no key columns are provided)
 - compare row i in A to row i in B
 - adds/removes reflect differing lengths
 
@@ -343,7 +343,13 @@ This repo is early-stage and actively evolving.
 
 ### Current CLI (Phase 1 reference)
 
-You can already run a keyed diff locally using the Python reference implementation:
+You can run a positional diff locally using the Python reference implementation:
+
+```bash
+make diff A=path/to/a.csv B=path/to/b.csv
+```
+
+Enable keyed mode by providing key columns:
 
 ```bash
 make diff A=path/to/a.csv B=path/to/b.csv KEY=id
@@ -376,7 +382,7 @@ Rust workspace now lives in `diffly-rust/` with:
 
 - `diffly-core` (CSV diff semantics)
 - `diffly-engine` (engine/runtime boundary with sink, cancel, progress, and partitioned spill utilities)
-- `diffly-cli` (native CLI surface for keyed diff)
+- `diffly-cli` (native CLI surface for positional + keyed diff)
 - `diffly-conformance` (runs `diffly-spec` fixtures)
 
 Run Rust parity checks with:
@@ -387,6 +393,12 @@ make test-spec-rust-engine PARTITIONS=4
 ```
 
 Run the native Rust CLI via:
+
+```bash
+make diff-rust A=a.csv B=b.csv
+```
+
+Enable keyed mode by providing key columns:
 
 ```bash
 make diff-rust A=a.csv B=b.csv KEY=id
@@ -406,17 +418,19 @@ Rust CLI supports multiple output modes now:
 
 ```bash
 # default JSONL stream (event-per-line)
-make diff-rust A=a.csv B=b.csv KEY=id
+make diff-rust A=a.csv B=b.csv
 
 # single JSON array output
-make diff-rust A=a.csv B=b.csv KEY=id FORMAT=json
+make diff-rust A=a.csv B=b.csv FORMAT=json
 
 # human-readable summary table
-make diff-rust A=a.csv B=b.csv KEY=id FORMAT=summary
+make diff-rust A=a.csv B=b.csv FORMAT=summary
 
 # write any mode to file
-make diff-rust A=a.csv B=b.csv KEY=id FORMAT=json OUT=/tmp/diff.json
+make diff-rust A=a.csv B=b.csv FORMAT=json OUT=/tmp/diff.json
 ```
+
+For keyed mode in any format, include `KEY=...` or `KEYS=...`.
 
 ### Web app (Phase 4 MVP complete)
 

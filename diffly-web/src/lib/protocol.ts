@@ -2,7 +2,8 @@ export type HeaderMode = "strict" | "sorted";
 
 export type SampleEvent = {
   type: "added" | "removed" | "changed";
-  key: Record<string, string>;
+  key?: Record<string, string>;
+  rowIndex?: number;
   before?: Record<string, string>;
   after?: Record<string, string>;
 };

@@ -163,6 +163,20 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: reduces peak memory pressure for large CSV comparisons and improves page survivability.
 
+## 2026-02-18
+
+### D-026 Compare mode selection UX
+
+- Decision: default compare behavior is `positional`; keyed mode is enabled only when key columns are explicitly provided.
+- Status: active.
+- Rationale: makes zero-config CLI/web usage useful immediately, while preserving explicit keyed semantics via `--key`/`--compare-by-keys` (or equivalent UI input).
+
+### D-027 Positional event identity
+
+- Decision: positional row events use `row_index` for identity and do not emit `key`.
+- Status: active.
+- Rationale: positional comparisons have no stable key tuple; row index is the deterministic identity for adds/removes/changes.
+
 ## Update Protocol
 
 When a new decision is made:

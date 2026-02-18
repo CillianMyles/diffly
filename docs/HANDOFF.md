@@ -5,13 +5,16 @@ Use this file to transfer context between sessions/agents with minimal loss.
 ## Current State
 
 - Active phase: Phase 4 MVP complete
-- Fixture suite: 18 conformance cases
+- Fixture suite: 19 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
   - semantics: `diffly-spec/SPEC.md`
   - current progress: `docs/STATUS.md`
   - decisions/constraints: `docs/DECISIONS.md`
 - Implemented semantics highlights:
+  - compare mode default: positional (row-by-row)
+  - keyed mode: enabled only when key columns are provided
+  - positional row events emit `row_index`
   - `header_mode`: `strict` (default) and `sorted`
   - duplicate column names: hard error
   - missing key values (`""`): hard error

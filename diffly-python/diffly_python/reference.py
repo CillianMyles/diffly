@@ -94,19 +94,20 @@ def _comparison_columns(a_header: list[str], b_header: list[str], header_mode: s
     raise DiffError("invalid_header_mode", f"Unsupported header_mode: {header_mode}")
 
 
-def diff_csv_files(
-    a_path: str,
-    b_path: str,
+def _diff_keyed(
+    a_header: list[str],
+    a_rows: list[tuple[int, dict]],
+    b_header: list[str],
+    b_rows: list[tuple[int, dict]],
     key_columns: list[str],
-    header_mode: str = "strict",
-    emit_unchanged: bool = False,
+    compare_columns: list[str],
+    emit_unchanged: bool,
 ):
-    a_header, a_rows = _read_csv(Path(a_path), "A")
-    b_header, b_rows = _read_csv(Path(b_path), "B")
-    compare_columns = _comparison_columns(a_header, b_header, header_mode)
+    if not key_columns:
+        raise DiffError("missing_key_column", "At least one key column is required in keyed mode")
 
     for key_column in key_columns:
-        if key_column not in a_header:
+        if key_column not in a_header or key_column not in b_header:
             raise DiffError("missing_key_column", f"Missing key column: {key_column}")
 
     indexed_a = _index_rows(a_rows, key_columns, "A")
@@ -177,5 +178,119 @@ def diff_csv_files(
             "rows_unchanged": rows_unchanged,
         }
     )
-
     return events
+
+
+def _diff_positional(
+    a_header: list[str],
+    a_rows: list[tuple[int, dict]],
+    b_header: list[str],
+    b_rows: list[tuple[int, dict]],
+    compare_columns: list[str],
+    emit_unchanged: bool,
+):
+    events = [
+        {
+            "type": "schema",
+            "columns_a": a_header,
+            "columns_b": b_header,
+        }
+    ]
+
+    rows_total_compared = 0
+    rows_added = 0
+    rows_removed = 0
+    rows_changed = 0
+    rows_unchanged = 0
+
+    total_rows = max(len(a_rows), len(b_rows))
+    for idx in range(total_rows):
+        row_index = idx + 2
+        in_a = idx < len(a_rows)
+        in_b = idx < len(b_rows)
+
+        if not in_a and in_b:
+            rows_added += 1
+            events.append({"type": "added", "row_index": row_index, "row": b_rows[idx][1]})
+            continue
+
+        if in_a and not in_b:
+            rows_removed += 1
+            events.append({"type": "removed", "row_index": row_index, "row": a_rows[idx][1]})
+            continue
+
+        if not in_a and not in_b:
+            continue
+
+        rows_total_compared += 1
+        row_a = a_rows[idx][1]
+        row_b = b_rows[idx][1]
+
+        changed_columns = [column for column in compare_columns if row_a[column] != row_b[column]]
+        if not changed_columns:
+            rows_unchanged += 1
+            if emit_unchanged:
+                events.append({"type": "unchanged", "row_index": row_index, "row": row_a})
+            continue
+
+        rows_changed += 1
+        events.append(
+            {
+                "type": "changed",
+                "row_index": row_index,
+                "changed": changed_columns,
+                "before": row_a,
+                "after": row_b,
+                "delta": {
+                    column: {"from": row_a[column], "to": row_b[column]}
+                    for column in changed_columns
+                },
+            }
+        )
+
+    events.append(
+        {
+            "type": "stats",
+            "rows_total_compared": rows_total_compared,
+            "rows_added": rows_added,
+            "rows_removed": rows_removed,
+            "rows_changed": rows_changed,
+            "rows_unchanged": rows_unchanged,
+        }
+    )
+    return events
+
+
+def diff_csv_files(
+    a_path: str,
+    b_path: str,
+    key_columns: list[str] | None = None,
+    mode: str = "positional",
+    header_mode: str = "strict",
+    emit_unchanged: bool = False,
+):
+    a_header, a_rows = _read_csv(Path(a_path), "A")
+    b_header, b_rows = _read_csv(Path(b_path), "B")
+    compare_columns = _comparison_columns(a_header, b_header, header_mode)
+
+    normalized_key_columns = list(key_columns or [])
+    if mode == "keyed":
+        return _diff_keyed(
+            a_header,
+            a_rows,
+            b_header,
+            b_rows,
+            normalized_key_columns,
+            compare_columns,
+            emit_unchanged,
+        )
+    if mode == "positional":
+        return _diff_positional(
+            a_header,
+            a_rows,
+            b_header,
+            b_rows,
+            compare_columns,
+            emit_unchanged,
+        )
+    raise DiffError("invalid_mode", f"Unsupported mode: {mode}")

@@ -4,12 +4,12 @@ This document defines the initial conformance target for `diffly`.
 
 ## Scope
 
-- Mode: `keyed` only.
+- Modes: `keyed` and `positional`.
 - Input: two CSV files with header rows.
 - Output: JSONL event stream.
 - Goal: deterministic semantics for fixtures and cross-language conformance.
 
-`positional` and `bag` modes are out of scope for v0.
+`bag` mode is out of scope for v0.
 
 ## CSV Parsing Rules
 
@@ -25,7 +25,7 @@ This document defines the initial conformance target for `diffly`.
 - Row width must match header width exactly.
 - Row width mismatch is a hard error (`row_width_mismatch`).
 
-## Key Rules
+## Key Rules (`keyed` mode only)
 
 - `key_columns` must be present in both headers.
 - Missing key column is a hard error (`missing_key_column`).
@@ -51,11 +51,23 @@ Given unique keyed rows from A and B:
   - identical full row => `unchanged` (only if `emit_unchanged=true`)
   - otherwise => `changed`
 
+## Diff Behavior (`positional`)
+
+Given row sequences from A and B:
+
+- Compare data row `i` in A with data row `i` in B (1-based data row index; event `row_index = i + 1` in CSV coordinates).
+- Row exists in B but not A => `added`
+- Row exists in A but not B => `removed`
+- Row exists in both:
+  - identical full row => `unchanged` (only if `emit_unchanged=true`)
+  - otherwise => `changed`
+
 ## Deterministic Ordering
 
 To keep fixtures deterministic:
 
-- Emit data events in ascending key tuple order (lexicographic string tuple order).
+- `keyed`: emit data events in ascending key tuple order (lexicographic string tuple order).
+- `positional`: emit data events in ascending `row_index` order.
 - For `changed`, emit the `changed` column list in comparison order:
   - `strict`: A header order
   - `sorted`: sorted column names
@@ -117,6 +129,19 @@ Event stream is JSONL.
 }
 ```
 
+### `changed` (`positional` example)
+
+```json
+{
+  "type": "changed",
+  "row_index": 2,
+  "changed": ["name"],
+  "before": {"id": "1", "name": "Alice"},
+  "after": {"id": "1", "name": "Alicia"},
+  "delta": {"name": {"from": "Alice", "to": "Alicia"}}
+}
+```
+
 ### `stats`
 
 ```json
@@ -160,3 +185,8 @@ Each fixture directory contains:
   "emit_unchanged": false
 }
 ```
+
+`mode` values:
+
+- `keyed`: `key_columns` is required and must be non-empty.
+- `positional`: `key_columns` is ignored and should be omitted.

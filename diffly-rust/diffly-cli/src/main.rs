@@ -41,6 +41,15 @@ struct CliArgs {
     pretty: bool,
 }
 
+fn parse_key_csv(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(ToString::to_string)
+        .collect()
+}
+
 fn parse_args() -> Result<CliArgs, String> {
     let mut a_path: Option<String> = None;
     let mut b_path: Option<String> = None;
@@ -78,6 +87,13 @@ fn parse_args() -> Result<CliArgs, String> {
                     .get(i)
                     .ok_or_else(|| "--key requires a value".to_string())?;
                 key_columns.push(value.clone());
+            }
+            "--compare-by-keys" => {
+                i += 1;
+                let value = args
+                    .get(i)
+                    .ok_or_else(|| "--compare-by-keys requires a value".to_string())?;
+                key_columns.extend(parse_key_csv(value));
             }
             "--header-mode" => {
                 i += 1;
@@ -135,10 +151,6 @@ fn parse_args() -> Result<CliArgs, String> {
         i += 1;
     }
 
-    if key_columns.is_empty() {
-        return Err(format!("At least one --key is required\n\n{}", help_text()));
-    }
-
     Ok(CliArgs {
         a_path: a_path.ok_or_else(|| format!("--a is required\n\n{}", help_text()))?,
         b_path: b_path.ok_or_else(|| format!("--b is required\n\n{}", help_text()))?,
@@ -157,12 +169,14 @@ fn parse_args() -> Result<CliArgs, String> {
 fn help_text() -> String {
     [
         "Usage:",
-        "  diffly-cli --a path/to/a.csv --b path/to/b.csv --key id [--key region]",
+        "  diffly-cli --a path/to/a.csv --b path/to/b.csv [--key id --key region]",
         "",
         "Options:",
         "  --a <path>                 Path to CSV A",
         "  --b <path>                 Path to CSV B",
-        "  --key <column>             Key column (repeat for composite keys)",
+        "  (default compare mode is positional when no keys are provided)",
+        "  --key <column>             Key column (repeat for keyed mode)",
+        "  --compare-by-keys <list>   Comma-separated key columns (enables keyed mode)",
         "  --header-mode <mode>       strict (default) | sorted",
         "  --emit-unchanged           Emit unchanged row events",
         "  --emit-progress            Emit progress events",

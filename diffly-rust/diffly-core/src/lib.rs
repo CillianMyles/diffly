@@ -249,7 +249,7 @@ fn row_to_value(row: &Row) -> Value {
     Value::Object(value)
 }
 
-fn diff_rows(
+fn diff_rows_keyed(
     a_header: Vec<String>,
     a_rows: Vec<IndexedRow>,
     b_header: Vec<String>,
@@ -371,6 +371,106 @@ fn diff_rows(
     Ok(events)
 }
 
+fn diff_rows_positional(
+    a_header: Vec<String>,
+    a_rows: Vec<IndexedRow>,
+    b_header: Vec<String>,
+    b_rows: Vec<IndexedRow>,
+    options: &DiffOptions,
+) -> Result<Vec<Value>, DiffError> {
+    let compare_columns = comparison_columns(&a_header, &b_header, options.header_mode)?;
+
+    let mut events: Vec<Value> = Vec::new();
+    events.push(json!({
+        "type": "schema",
+        "columns_a": a_header,
+        "columns_b": b_header
+    }));
+
+    let mut rows_total_compared = 0u64;
+    let mut rows_added = 0u64;
+    let mut rows_removed = 0u64;
+    let mut rows_changed = 0u64;
+    let mut rows_unchanged = 0u64;
+
+    let total_rows = a_rows.len().max(b_rows.len());
+    for idx in 0..total_rows {
+        let row_index = idx + 2;
+        let in_a = a_rows.get(idx);
+        let in_b = b_rows.get(idx);
+
+        match (in_a, in_b) {
+            (None, Some((_, row_b))) => {
+                rows_added += 1;
+                events.push(json!({
+                    "type": "added",
+                    "row_index": row_index,
+                    "row": row_to_value(row_b)
+                }));
+            }
+            (Some((_, row_a)), None) => {
+                rows_removed += 1;
+                events.push(json!({
+                    "type": "removed",
+                    "row_index": row_index,
+                    "row": row_to_value(row_a)
+                }));
+            }
+            (Some((_, row_a)), Some((_, row_b))) => {
+                rows_total_compared += 1;
+                let changed_columns: Vec<String> = compare_columns
+                    .iter()
+                    .filter(|column| row_a.get(*column) != row_b.get(*column))
+                    .cloned()
+                    .collect();
+
+                if changed_columns.is_empty() {
+                    rows_unchanged += 1;
+                    if options.emit_unchanged {
+                        events.push(json!({
+                            "type": "unchanged",
+                            "row_index": row_index,
+                            "row": row_to_value(row_a)
+                        }));
+                    }
+                } else {
+                    rows_changed += 1;
+                    let mut delta = Map::new();
+                    for column in &changed_columns {
+                        delta.insert(
+                            column.clone(),
+                            json!({
+                                "from": row_a.get(column).cloned().unwrap_or_default(),
+                                "to": row_b.get(column).cloned().unwrap_or_default()
+                            }),
+                        );
+                    }
+                    events.push(json!({
+                        "type": "changed",
+                        "row_index": row_index,
+                        "changed": changed_columns,
+                        "before": row_to_value(row_a),
+                        "after": row_to_value(row_b),
+                        "delta": Value::Object(delta)
+                    }));
+                }
+            }
+            (None, None) => {}
+        }
+    }
+
+    events.push(json!({
+        "type": "stats",
+        "rows_total_compared": rows_total_compared,
+        "rows_added": rows_added,
+        "rows_removed": rows_removed,
+        "rows_changed": rows_changed,
+        "rows_unchanged": rows_unchanged
+    }));
+
+    Ok(events)
+}
+
 pub fn diff_csv_files(
     a_path: &Path,
     b_path: &Path,
@@ -378,7 +478,11 @@ pub fn diff_csv_files(
 ) -> Result<Vec<Value>, DiffError> {
     let (a_header, a_rows) = read_csv(a_path, "A")?;
     let (b_header, b_rows) = read_csv(b_path, "B")?;
-    diff_rows(a_header, a_rows, b_header, b_rows, options)
+    if options.key_columns.is_empty() {
+        diff_rows_positional(a_header, a_rows, b_header, b_rows, options)
+    } else {
+        diff_rows_keyed(a_header, a_rows, b_header, b_rows, options)
+    }
 }
 
 pub fn diff_csv_bytes(
@@ -388,7 +492,11 @@ pub fn diff_csv_bytes(
 ) -> Result<Vec<Value>, DiffError> {
     let (a_header, a_rows) = read_csv_reader(std::io::Cursor::new(a_bytes), "A", "<memory:a>")?;
     let (b_header, b_rows) = read_csv_reader(std::io::Cursor::new(b_bytes), "B", "<memory:b>")?;
-    diff_rows(a_header, a_rows, b_header, b_rows, options)
+    if options.key_columns.is_empty() {
+        diff_rows_positional(a_header, a_rows, b_header, b_rows, options)
+    } else {
+        diff_rows_keyed(a_header, a_rows, b_header, b_rows, options)
+    }
 }
 
 #[cfg(test)]
@@ -415,6 +523,14 @@ mod tests {
     fn default_options() -> DiffOptions {
         DiffOptions {
             key_columns: vec!["id".to_string()],
+            header_mode: HeaderMode::Strict,
+            emit_unchanged: false,
+        }
+    }
+
+    fn positional_options() -> DiffOptions {
+        DiffOptions {
+            key_columns: Vec::new(),
             header_mode: HeaderMode::Strict,
             emit_unchanged: false,
         }
@@ -492,5 +608,34 @@ mod tests {
             types,
             vec!["schema", "changed", "removed", "added", "stats"]
         );
+    }
+
+    #[test]
+    fn positional_mode_emits_row_indexed_events() {
+        let a = write_csv("positional-a", "id,name\n1,Alice\n2,Bob\n3,Cara\n");
+        let b = write_csv("positional-b", "id,name\n1,Alicia\n2,Bob\n4,Dan\n5,Eve\n");
+
+        let events = diff_csv_files(&a, &b, &positional_options()).expect("diff should succeed");
+        let changed = events
+            .iter()
+            .find(|event| event.get("type").and_then(Value::as_str) == Some("changed"))
+            .expect("changed event should be present");
+        assert_eq!(changed.get("row_index").and_then(Value::as_u64), Some(2));
+        assert!(
+            changed.get("key").is_none(),
+            "positional events should not emit keys"
+        );
+
+        let added = events
+            .iter()
+            .find(|event| {
+                event.get("type").and_then(Value::as_str) == Some("added")
+                    && event.get("row_index").and_then(Value::as_u64) == Some(5)
+            })
+            .expect("added event for trailing row should be present");
+        assert!(added.get("row").is_some());
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
     }
 }

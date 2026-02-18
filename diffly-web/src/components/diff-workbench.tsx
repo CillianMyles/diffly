@@ -130,6 +130,7 @@ function FilePicker({
 }
 
 function SampleRow({ sample }: { sample: SampleEvent }) {
+  const identity = sample.key ? JSON.stringify(sample.key) : `row_index=${sample.rowIndex ?? "?"}`;
   return (
     <div
       style={{
@@ -141,7 +142,7 @@ function SampleRow({ sample }: { sample: SampleEvent }) {
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
         <strong style={{ textTransform: "uppercase", fontSize: 12, letterSpacing: 0.6 }}>{sample.type}</strong>
-        <code style={{ fontSize: 12 }}>{JSON.stringify(sample.key)}</code>
+        <code style={{ fontSize: 12 }}>{identity}</code>
       </div>
       {sample.before ? (
         <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: sample.after ? 8 : 0 }}>
@@ -161,6 +162,7 @@ export function DiffWorkbench() {
 
   const [fileA, setFileA] = useState<File | null>(null);
   const [fileB, setFileB] = useState<File | null>(null);
+  const [compareByKeys, setCompareByKeys] = useState(false);
   const [keyColumnsInput, setKeyColumnsInput] = useState("id");
   const [headerMode, setHeaderMode] = useState<HeaderMode>("strict");
   const [preferWasm, setPreferWasm] = useState(true);
@@ -243,7 +245,7 @@ export function DiffWorkbench() {
     if (!workerRef.current || !fileA || !fileB) {
       return;
     }
-    if (keyColumns.length === 0) {
+    if (compareByKeys && keyColumns.length === 0) {
       setState("error");
       setError("At least one key column is required.");
       return;
@@ -263,7 +265,7 @@ export function DiffWorkbench() {
       requestId,
       aFile: fileA,
       bFile: fileB,
-      keyColumns,
+      keyColumns: compareByKeys ? keyColumns : [],
       headerMode,
       emitUnchanged: false,
       maxSampleEvents: 30,
@@ -305,24 +307,31 @@ export function DiffWorkbench() {
           gap: 12,
         }}
       >
-        <div style={{ display: "grid", gap: 8 }}>
-          <label htmlFor="keys" style={{ fontWeight: 600 }}>
-            Key columns (comma-separated)
-          </label>
-          <input
-            id="keys"
-            value={keyColumnsInput}
-            onChange={(event) => setKeyColumnsInput(event.currentTarget.value)}
-            placeholder="id,region"
-            style={{
-              width: "100%",
-              borderRadius: 10,
-              border: "1px solid var(--border)",
-              padding: "10px 12px",
-              font: "inherit",
-            }}
-          />
-        </div>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="checkbox" checked={compareByKeys} onChange={(event) => setCompareByKeys(event.currentTarget.checked)} />
+          Compare by keys (unchecked = positional row-by-row)
+        </label>
+
+        {compareByKeys ? (
+          <div style={{ display: "grid", gap: 8 }}>
+            <label htmlFor="keys" style={{ fontWeight: 600 }}>
+              Key columns (comma-separated)
+            </label>
+            <input
+              id="keys"
+              value={keyColumnsInput}
+              onChange={(event) => setKeyColumnsInput(event.currentTarget.value)}
+              placeholder="id,region"
+              style={{
+                width: "100%",
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                padding: "10px 12px",
+                font: "inherit",
+              }}
+            />
+          </div>
+        ) : null}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
