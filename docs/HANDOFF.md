@@ -5,7 +5,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 ## Current State
 
 - Active phase: Phase 4 MVP complete
-- Fixture suite: 19 conformance cases
+- Fixture suite: 20 conformance cases
 - Truth sources:
   - vision/roadmap: `README.md`
   - semantics: `diffly-spec/SPEC.md`

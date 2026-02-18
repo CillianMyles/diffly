@@ -49,6 +49,21 @@ jobs:
             --a diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
             --b diffly-spec/fixtures/positional_basic_add_remove_change/b.csv > /tmp/diffly-smoke-positional.jsonl
 
+      - name: Run unordered CLI smoke test (--ignore-row-order)
+        run: |
+          python diffly-python/diffly.py \
+            --a diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv \
+            --b diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv \
+            --ignore-row-order > /tmp/diffly-smoke-unordered.jsonl
+
+      - name: Run ignore-column-order keyed smoke test
+        run: |
+          python diffly-python/diffly.py \
+            --a diffly-spec/fixtures/keyed_header_sorted_mode_add/a.csv \
+            --b diffly-spec/fixtures/keyed_header_sorted_mode_add/b.csv \
+            --key id \
+            --ignore-column-order > /tmp/diffly-smoke-ignore-column-order.jsonl
+
       - name: Verify smoke output has schema and stats
         run: |
           python - <<'PY'
@@ -72,6 +87,25 @@ jobs:
           assert positional_lines, "Positional smoke output is empty"
           assert positional_lines[0].get("type") == "schema", "First positional event must be schema"
           assert positional_lines[-1].get("type") == "stats", "Last positional event must be stats"
+
+          unordered_lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-smoke-unordered.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert unordered_lines, "Unordered smoke output is empty"
+          assert unordered_lines[0].get("type") == "schema", "First unordered event must be schema"
+          assert unordered_lines[-1].get("type") == "stats", "Last unordered event must be stats"
+          assert unordered_lines[-1].get("rows_changed") == 0, "Unordered stats rows_changed must be 0"
+
+          ignore_column_lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-smoke-ignore-column-order.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert ignore_column_lines, "Ignore-column-order smoke output is empty"
+          assert ignore_column_lines[0].get("type") == "schema", "First ignore-column-order event must be schema"
+          assert ignore_column_lines[-1].get("type") == "stats", "Last ignore-column-order event must be stats"
           PY
 
   rust-conformance:
@@ -117,6 +151,21 @@ jobs:
             A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
             B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv > /tmp/diffly-rust-smoke-positional.jsonl
 
+      - name: Run Rust unordered CLI smoke test (--ignore-row-order)
+        run: |
+          make diff-rust \
+            A=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv \
+            B=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv \
+            IGNORE_ROW_ORDER=1 > /tmp/diffly-rust-smoke-unordered.jsonl
+
+      - name: Run Rust ignore-column-order keyed smoke test
+        run: |
+          make diff-rust \
+            A=diffly-spec/fixtures/keyed_header_sorted_mode_add/a.csv \
+            B=diffly-spec/fixtures/keyed_header_sorted_mode_add/b.csv \
+            KEY=id \
+            IGNORE_COLUMN_ORDER=1 > /tmp/diffly-rust-smoke-ignore-column-order.jsonl
+
       - name: Verify Rust smoke output has schema and stats
         run: |
           python3 - <<'PY'
@@ -140,6 +189,25 @@ jobs:
           assert positional_lines, "Rust positional smoke output is empty"
           assert positional_lines[0].get("type") == "schema", "First positional event must be schema"
           assert positional_lines[-1].get("type") == "stats", "Last positional event must be stats"
+
+          unordered_lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-rust-smoke-unordered.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert unordered_lines, "Rust unordered smoke output is empty"
+          assert unordered_lines[0].get("type") == "schema", "First unordered event must be schema"
+          assert unordered_lines[-1].get("type") == "stats", "Last unordered event must be stats"
+          assert unordered_lines[-1].get("rows_changed") == 0, "Rust unordered rows_changed must be 0"
+
+          ignore_column_lines = [
+              json.loads(line)
+              for line in Path("/tmp/diffly-rust-smoke-ignore-column-order.jsonl").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert ignore_column_lines, "Rust ignore-column-order smoke output is empty"
+          assert ignore_column_lines[0].get("type") == "schema", "First ignore-column-order event must be schema"
+          assert ignore_column_lines[-1].get("type") == "stats", "Last ignore-column-order event must be stats"
           PY
 
       - name: Run Rust CLI partitioned smoke test

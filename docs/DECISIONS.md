@@ -193,6 +193,12 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: avoids conflicting checkbox combinations and keeps advanced options explicit while preserving default positional behavior.
 
+### D-030 Ignore-column-order flag mapping
+
+- Decision: `ignore_column_order` is an alias that maps to sorted-header comparison (`header_mode=sorted`).
+- Status: active.
+- Rationale: keeps user-facing terminology simple while preserving existing deterministic header-mode semantics internally.
+
 ## Update Protocol
 
 When a new decision is made:

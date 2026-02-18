@@ -167,7 +167,16 @@ make diff-rust \
 ```
 Expected: positional events with `row_index`.
 
-2. Keyed via `KEY`:
+2. Ignore row order (multiset positional):
+```bash
+make diff-rust \
+  A=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv \
+  B=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv \
+  IGNORE_ROW_ORDER=1
+```
+Expected: unordered events (`added`/`removed` without `key` or `row_index`), stats with `rows_changed=0`.
+
+3. Keyed via `KEY`:
 ```bash
 make diff-rust \
   A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
@@ -176,7 +185,7 @@ make diff-rust \
 ```
 Expected: keyed events with `key`.
 
-3. Keyed via `--compare-by-keys` direct CLI:
+4. Keyed via `--compare-by-keys` direct CLI:
 ```bash
 RUSTUP_BIN="$(command -v rustup || echo /opt/homebrew/opt/rustup/bin/rustup)" \
 CARGO_BIN="$($RUSTUP_BIN which cargo 2>/dev/null)" \
@@ -186,6 +195,15 @@ CARGO_BIN="$($RUSTUP_BIN which cargo 2>/dev/null)" \
   --compare-by-keys id
 ```
 Expected: keyed events with `key`.
+
+5. Ignore column order alias:
+```bash
+make diff-rust \
+  A=diffly-spec/fixtures/keyed_header_sorted_mode_add/a.csv \
+  B=diffly-spec/fixtures/keyed_header_sorted_mode_add/b.csv \
+  KEY=id IGNORE_COLUMN_ORDER=1 FORMAT=summary
+```
+Expected: succeeds with `Compared=2 Added=1 Removed=0 Changed=0 Unchanged=2`.
 
 ### 5.2 Output format behavior
 
@@ -237,16 +255,16 @@ make web-dev
 ```
 Open: [http://localhost:3000](http://localhost:3000)
 
-Current control surface (before ignore-row/ignore-column toggles):
-- Compare by keys (checkbox)
-- Key columns input (visible when keyed enabled)
-- Header mode (`strict`/`sorted`)
+Current control surface:
+- Compare strategy (`Positional`, `Ignore row order`, `Compare by key`)
+- Key columns input (visible only for `Compare by key`)
+- Ignore column order (checkbox)
 - Prefer WASM for small files
 
 ### 6.1 Positional default flow
 
 1. Load `positional_basic_add_remove_change` A/B.
-2. Ensure `Compare by keys` is unchecked.
+2. Set strategy to `Positional`.
 3. Compare.
 
 Expected:
@@ -257,7 +275,7 @@ Expected:
 ### 6.2 Keyed flow
 
 1. Load `keyed_basic_add_remove_change` A/B.
-2. Check `Compare by keys` and set `id`.
+2. Set strategy to `Compare by key` and enter `id`.
 3. Compare.
 
 Expected:
@@ -265,20 +283,31 @@ Expected:
 - Summary: `Compared=2 Added=1 Removed=1 Changed=1 Unchanged=1`.
 - Sample events show keyed identity (`{"id":"..."}`).
 
-### 6.3 Header mode UX behavior
+### 6.3 Ignore-row-order flow
+
+1. Load `positional_ignore_row_order_basic_add_remove` A/B.
+2. Set strategy to `Ignore row order`.
+3. Compare.
+
+Expected:
+- Success.
+- Summary: `Compared=3 Added=1 Removed=1 Changed=0 Unchanged=3`.
+- Samples show `unordered row` identity (no key/row index).
+
+### 6.4 Ignore-column-order UX behavior
 
 1. Use `keyed_header_sorted_mode_add` fixture with keyed `id`.
-2. Run once with `Header mode = strict`.
+2. Run once with `Ignore column order` unchecked.
 
 Expected:
 - Header mismatch error.
 
-3. Run with `Header mode = sorted`.
+3. Run with `Ignore column order` checked.
 
 Expected:
 - Success summary: `Compared=2 Added=1 Removed=0 Changed=0 Unchanged=2`.
 
-### 6.4 Error rendering behavior
+### 6.5 Error rendering behavior
 
 Run these through UI and verify explicit error card text:
 
@@ -290,7 +319,7 @@ Expected:
 - Compare ends in error state.
 - App remains interactive for next run.
 
-### 6.5 Cancel behavior
+### 6.6 Cancel behavior
 
 1. Use generated large files from section 7.
 2. Start compare.
@@ -361,7 +390,7 @@ Expected: warning text explains IndexedDB fallback path.
 
 ## 8) Cross-Engine Consistency Drill
 
-Pick one keyed fixture and one positional fixture.
+Pick one keyed fixture, one positional fixture, and one unordered (`ignore_row_order`) fixture.
 
 For each dataset:
 1. Run Rust CLI (`FORMAT=json`) and save output.
@@ -375,11 +404,13 @@ Expected:
 ## 9) Regression List
 
 1. Positional default works without keys in CLI and web.
-2. Keyed mode still enforces duplicate/missing-key rules.
-3. Unchecked WASM path does not get stuck after `partitioning`.
-4. Header `sorted` mode behavior remains deterministic.
-5. Worker failures surface as explicit UI errors.
-6. Cancel works in partitioning and diff phases.
+2. Ignore-row-order mode produces multiset stats and keeps `rows_changed=0`.
+3. Keyed mode still enforces duplicate/missing-key rules.
+4. Keyed + ignore-row-order is rejected with explicit error.
+5. Ignore-column-order toggle maps to sorted-header behavior.
+6. Unchecked WASM path does not get stuck after `partitioning`.
+7. Worker failures surface as explicit UI errors.
+8. Cancel works in partitioning and diff phases.
 
 ## 10) Bug Report Template
 
@@ -391,9 +422,9 @@ For each failure, capture:
 
 2. Inputs:
 - file paths
-- whether keyed compare was enabled
-- key columns (if keyed)
-- header mode
+- compare strategy (`positional` / `ignore row order` / `compare by key`)
+- key columns (if keyed strategy)
+- ignore-column-order toggle state
 - WASM preference
 
 3. Observed:
@@ -413,7 +444,7 @@ For each failure, capture:
 Pass when all are true:
 
 1. Preflight checks pass.
-2. Positional and keyed spot checks match expected results.
+2. Positional, keyed, and ignore-row-order spot checks match expected results.
 3. CLI formats and `--out` behavior are correct.
 4. Web path passes small/large/cancel/error routing checks.
 5. No hangs or worker crashes in repeated-run stability checks.

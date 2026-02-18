@@ -2,6 +2,13 @@
 
 Browser UI for `diffly` seeded from DiffyData UX and wired to worker + WASM execution.
 
+Current compare controls:
+
+- Strategy: `Positional`, `Ignore row order`, or `Compare by key`.
+- `Ignore column order` toggle (maps to sorted-header comparison).
+- Key input appears only for `Compare by key`.
+- `Prefer WASM for small files` toggle.
+
 ## Development
 
 ```bash

@@ -290,7 +290,7 @@ Suggested rule (v1):
 
 ## Diff modes (semantics)
 
-diffly should explicitly support multiple comparison modes; `diffly-spec` will define expected output for each.
+diffly currently supports two compare strategies plus an order option:
 
 ### `keyed` mode (enabled when key columns are provided)
 - external hash-join semantics using key columns
@@ -301,10 +301,10 @@ diffly should explicitly support multiple comparison modes; `diffly-spec` will d
 - compare row i in A to row i in B
 - adds/removes reflect differing lengths
 
-### `bag` mode (no key columns, ignore row order)
+### `--ignore-row-order` (positional multiset option)
 - treat each row as a value; compare as a multiset
-- implementation may hash rows and compare counts
-- emits adds/removes/changes at row-hash granularity (spec-defined)
+- emits `added`/`removed` deltas and unchanged counts
+- rejects keyed + ignore-row-order combination
 
 ---
 
@@ -365,6 +365,18 @@ For sorted-header comparison mode:
 
 ```bash
 make diff A=a.csv B=b.csv KEY=id HEADER_MODE=sorted
+```
+
+Alias flag:
+
+```bash
+make diff A=a.csv B=b.csv KEY=id IGNORE_COLUMN_ORDER=1
+```
+
+Ignore row order (multiset positional):
+
+```bash
+make diff A=a.csv B=b.csv IGNORE_ROW_ORDER=1
 ```
 
 For composite keys, call the script directly:
@@ -432,6 +444,18 @@ make diff-rust A=a.csv B=b.csv FORMAT=json OUT=/tmp/diff.json
 
 For keyed mode in any format, include `KEY=...` or `KEYS=...`.
 
+Ignore column order alias:
+
+```bash
+make diff-rust A=a.csv B=b.csv KEY=id IGNORE_COLUMN_ORDER=1
+```
+
+Ignore row order (multiset positional):
+
+```bash
+make diff-rust A=a.csv B=b.csv IGNORE_ROW_ORDER=1
+```
+
 ### Web app (Phase 4 MVP complete)
 
 `diffly-web/` is now seeded from the DiffyData-style UX and wired to `diffly` runtime semantics:
@@ -440,6 +464,8 @@ For keyed mode in any format, include `KEY=...` or `KEYS=...`.
 - uses Rust/WASM path for small files
 - uses partitioned IndexedDB spill path for larger files (and falls back to in-memory worker mode if IndexedDB is unavailable)
 - supports cancel + phase progress frames in the UI
+- supports strategy selection: positional, ignore row order, compare by key
+- supports ignore-column-order toggle and key input only when keyed strategy is selected
 
 Install and run:
 
@@ -481,9 +507,11 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - `make test-spec`
 - `python -m compileall diffly-python`
 - a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
+- Python smoke coverage for positional default, ignore-row-order, and ignore-column-order
 - Rust fmt check + `cargo test` + Rust fixture conformance (`make test-spec-rust`)
 - Rust engine conformance parity mode (`make test-spec-rust-engine PARTITIONS=4`)
 - Rust CLI smoke test via `make diff-rust ...`
+- Rust smoke coverage for positional default, ignore-row-order, and ignore-column-order
 - Rust partitioned CLI smoke test via `make diff-rust ... PARTITIONS=4`
 - Web app typecheck/build (`make web-typecheck` + `npm --prefix diffly-web run build`)
 

@@ -6,9 +6,9 @@ Last updated: 2026-02-18
 
 - Phase: Phase 4 MVP complete (`diffly-web` worker + wasm)
 - Branch: `main`
-- Last pushed commit at time of this update: `6e0faa9`
+- Last pushed commit at time of this update: `ddd384b`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
-- Fixture count: 19
+- Fixture count: 20
 - Autonomy mode: active (continue until done or hard-blocked)
 
 ## Completed
@@ -111,7 +111,7 @@ Last updated: 2026-02-18
   - `make diff` / `make diff-rust` no longer require keys
 - Updated web app compare UX:
   - default compare mode is positional
-  - keyed compare is opt-in via "Compare by keys"
+  - compare strategy selector now supports positional, ignore-row-order, and keyed
   - sample rendering supports either keyed identity or positional `row_index`
 - Rebuilt Rust WASM package for web after positional support in `diffly-wasm`.
 - Updated CI smoke checks to include positional default-mode CLI runs for both Python and Rust.
@@ -126,6 +126,11 @@ Last updated: 2026-02-18
   - checkbox toggles: ignore-column-order, prefer-wasm-for-small-files
   - worker protocol now includes `ignoreRowOrder`
   - small-file WASM path now receives ignore-row-order flag
+- Updated CI smoke checks to cover ignore-row-order and ignore-column-order flows for both Python and Rust CLI paths.
+- Updated project documentation to match current semantics/UI:
+  - `README.md` now documents `IGNORE_ROW_ORDER` and `IGNORE_COLUMN_ORDER` usage
+  - `diffly-web/README.md` now documents strategy-based controls
+  - `docs/MANUAL_TEST_PLAN.md` updated to include ignore-row-order and ignore-column-order validation flows
 
 ## In Progress
 
@@ -153,7 +158,10 @@ Last updated: 2026-02-18
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/positional_basic_add_remove_change/a.csv --b diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`
+- `python3 diffly-python/diffly.py --a diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv --b diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv --ignore-row-order`
 - `make diff-rust A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`
+- `make diff-rust A=diffly-spec/fixtures/keyed_header_sorted_mode_add/a.csv B=diffly-spec/fixtures/keyed_header_sorted_mode_add/b.csv KEY=id IGNORE_COLUMN_ORDER=1`
+- `make diff-rust A=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv B=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv IGNORE_ROW_ORDER=1`
 
 ## Update Protocol
 
