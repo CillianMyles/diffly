@@ -23,6 +23,7 @@ make test-spec
 - `key_columns` (required for `keyed`, omitted for `positional`)
 - `header_mode` (`strict` default, or `sorted`)
 - `emit_unchanged` (`false` default)
+- `ignore_row_order` (`false` default; valid only for `mode: positional`)
 
 CSV fixture note:
 

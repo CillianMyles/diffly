@@ -69,11 +69,23 @@ fn parse_options(config: &Value) -> Result<DiffOptions, DiffError> {
         .get("emit_unchanged")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let ignore_row_order = config
+        .get("ignore_row_order")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    if mode == "keyed" && ignore_row_order {
+        return Err(DiffError::new(
+            "invalid_config",
+            "ignore_row_order cannot be true for keyed fixtures",
+        ));
+    }
 
     Ok(DiffOptions {
         key_columns,
         header_mode: HeaderMode::parse(header_mode)?,
         emit_unchanged,
+        ignore_row_order,
     })
 }
 

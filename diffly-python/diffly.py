@@ -42,6 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Alias for --header-mode sorted",
     )
     parser.add_argument(
+        "--ignore-row-order",
+        action="store_true",
+        help="Ignore input row order (multiset comparison; valid without key columns)",
+    )
+    parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print JSON output instead of compact JSONL",
@@ -74,6 +79,7 @@ def main() -> int:
             mode=mode,
             header_mode=header_mode,
             emit_unchanged=args.emit_unchanged,
+            ignore_row_order=args.ignore_row_order,
         )
     except DiffError as err:
         error_event = {"type": "error", "code": err.code, "message": err.message}

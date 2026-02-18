@@ -8,8 +8,8 @@ help:
 	@echo "    make test-spec             Run diffly spec fixtures"
 	@echo "    make test-spec-rust        Run diffly spec fixtures against Rust core"
 	@echo "    make test-spec-rust-engine [PARTITIONS=N]  Run fixtures against Rust engine path (default N=1)"
-	@echo "    make diff A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1]  Run CSV diff (positional default; keyed when keys provided)"
-	@echo "    make diff-rust A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary] [OUT=path]  Run Rust CSV diff (positional default; keyed when keys provided)"
+	@echo "    make diff A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1]  Run CSV diff (positional default; keyed when keys provided)"
+	@echo "    make diff-rust A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary] [OUT=path]  Run Rust CSV diff (positional default; keyed when keys provided)"
 	@echo "    make web-install           Install diffly-web dependencies"
 	@echo "    make web-dev               Run diffly-web dev server"
 	@echo "    make web-typecheck         Type-check diffly-web"
@@ -69,7 +69,7 @@ test-spec-rust-engine:
 
 diff:
 	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
-		echo "Usage: make diff A=path/to/a.csv B=path/to/b.csv [KEY=id|KEYS=id,region] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1]"; \
+		echo "Usage: make diff A=path/to/a.csv B=path/to/b.csv [KEY=id|KEYS=id,region] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1]"; \
 		exit 2; \
 	fi; \
 	KEY_ARGS=""; \
@@ -89,13 +89,17 @@ diff:
 	if [ -n "$(IGNORE_COLUMN_ORDER)" ]; then \
 		IGNORE_COLUMN_ORDER_ARG="--ignore-column-order"; \
 	fi; \
-	python3 diffly-python/diffly.py --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}" $$IGNORE_COLUMN_ORDER_ARG
+	IGNORE_ROW_ORDER_ARG=""; \
+	if [ -n "$(IGNORE_ROW_ORDER)" ]; then \
+		IGNORE_ROW_ORDER_ARG="--ignore-row-order"; \
+	fi; \
+	python3 diffly-python/diffly.py --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}" $$IGNORE_COLUMN_ORDER_ARG $$IGNORE_ROW_ORDER_ARG
 
 .PHONY: diff-rust
 
 diff-rust:
 	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
-		echo "Usage: make diff-rust A=path/to/a.csv B=path/to/b.csv [KEY=id|KEYS=id,region] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1]"; \
+		echo "Usage: make diff-rust A=path/to/a.csv B=path/to/b.csv [KEY=id|KEYS=id,region] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1]"; \
 		exit 2; \
 	fi; \
 	KEY_ARGS=""; \
@@ -135,6 +139,10 @@ diff-rust:
 	if [ -n "$(IGNORE_COLUMN_ORDER)" ]; then \
 		IGNORE_COLUMN_ORDER_ARG="--ignore-column-order"; \
 	fi; \
+	IGNORE_ROW_ORDER_ARG=""; \
+	if [ -n "$(IGNORE_ROW_ORDER)" ]; then \
+		IGNORE_ROW_ORDER_ARG="--ignore-row-order"; \
+	fi; \
 	CARGO_BIN="$$(command -v cargo || true)"; \
 	RUSTUP_BIN="$$(command -v rustup || true)"; \
 	if [ -z "$$RUSTUP_BIN" ] && [ -x "/opt/homebrew/opt/rustup/bin/rustup" ]; then \
@@ -148,7 +156,7 @@ diff-rust:
 		exit 2; \
 	fi; \
 	export PATH="$$(dirname "$$CARGO_BIN"):$$PATH"; \
-	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-cli -- --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}" $$IGNORE_COLUMN_ORDER_ARG $$PROGRESS_ARG $$PARTITION_ARG $$NO_PARTITIONS_ARG $$FORMAT_ARG $$OUT_ARG
+	"$$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-cli -- --a "$(A)" --b "$(B)" $$KEY_ARGS --header-mode "$${HEADER_MODE:-strict}" $$IGNORE_COLUMN_ORDER_ARG $$IGNORE_ROW_ORDER_ARG $$PROGRESS_ARG $$PARTITION_ARG $$NO_PARTITIONS_ARG $$FORMAT_ARG $$OUT_ARG
 
 .PHONY: web-install web-dev web-typecheck wasm-build-web
 

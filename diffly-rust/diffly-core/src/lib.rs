@@ -31,6 +31,7 @@ pub struct DiffOptions {
     pub key_columns: Vec<String>,
     pub header_mode: HeaderMode,
     pub emit_unchanged: bool,
+    pub ignore_row_order: bool,
 }
 
 impl Default for DiffOptions {
@@ -39,6 +40,7 @@ impl Default for DiffOptions {
             key_columns: Vec::new(),
             header_mode: HeaderMode::Strict,
             emit_unchanged: false,
+            ignore_row_order: false,
         }
     }
 }
@@ -247,6 +249,13 @@ fn row_to_value(row: &Row) -> Value {
         value.insert(key.clone(), Value::String(val.clone()));
     }
     Value::Object(value)
+}
+
+fn row_signature(row: &Row, compare_columns: &[String]) -> Vec<String> {
+    compare_columns
+        .iter()
+        .map(|column| row.get(column).cloned().unwrap_or_default())
+        .collect()
 }
 
 fn diff_rows_keyed(
@@ -471,15 +480,122 @@ fn diff_rows_positional(
     Ok(events)
 }
 
+fn diff_rows_multiset(
+    a_header: Vec<String>,
+    a_rows: Vec<IndexedRow>,
+    b_header: Vec<String>,
+    b_rows: Vec<IndexedRow>,
+    options: &DiffOptions,
+) -> Result<Vec<Value>, DiffError> {
+    let compare_columns = comparison_columns(&a_header, &b_header, options.header_mode)?;
+
+    let mut grouped_a: HashMap<Vec<String>, Vec<Row>> = HashMap::new();
+    let mut grouped_b: HashMap<Vec<String>, Vec<Row>> = HashMap::new();
+
+    for (_, row) in a_rows {
+        let signature = row_signature(&row, &compare_columns);
+        grouped_a.entry(signature).or_default().push(row);
+    }
+    for (_, row) in b_rows {
+        let signature = row_signature(&row, &compare_columns);
+        grouped_b.entry(signature).or_default().push(row);
+    }
+
+    let mut signatures: Vec<Vec<String>> = grouped_a
+        .keys()
+        .chain(grouped_b.keys())
+        .cloned()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    signatures.sort();
+
+    let mut events: Vec<Value> = Vec::new();
+    events.push(json!({
+        "type": "schema",
+        "columns_a": a_header,
+        "columns_b": b_header
+    }));
+
+    let mut rows_total_compared = 0u64;
+    let mut rows_added = 0u64;
+    let mut rows_removed = 0u64;
+    let rows_changed = 0u64;
+    let mut rows_unchanged = 0u64;
+
+    for signature in signatures {
+        let rows_for_sig_a = grouped_a
+            .get(&signature)
+            .map_or(&[][..], |rows| rows.as_slice());
+        let rows_for_sig_b = grouped_b
+            .get(&signature)
+            .map_or(&[][..], |rows| rows.as_slice());
+
+        let matched = rows_for_sig_a.len().min(rows_for_sig_b.len());
+        rows_total_compared += matched as u64;
+        rows_unchanged += matched as u64;
+
+        if options.emit_unchanged {
+            for row in rows_for_sig_a.iter().take(matched) {
+                events.push(json!({
+                    "type": "unchanged",
+                    "row": row_to_value(row)
+                }));
+            }
+        }
+
+        if rows_for_sig_a.len() > rows_for_sig_b.len() {
+            for row in rows_for_sig_a.iter().skip(matched) {
+                rows_removed += 1;
+                events.push(json!({
+                    "type": "removed",
+                    "row": row_to_value(row)
+                }));
+            }
+        }
+
+        if rows_for_sig_b.len() > rows_for_sig_a.len() {
+            for row in rows_for_sig_b.iter().skip(matched) {
+                rows_added += 1;
+                events.push(json!({
+                    "type": "added",
+                    "row": row_to_value(row)
+                }));
+            }
+        }
+    }
+
+    events.push(json!({
+        "type": "stats",
+        "rows_total_compared": rows_total_compared,
+        "rows_added": rows_added,
+        "rows_removed": rows_removed,
+        "rows_changed": rows_changed,
+        "rows_unchanged": rows_unchanged
+    }));
+
+    Ok(events)
+}
+
 pub fn diff_csv_files(
     a_path: &Path,
     b_path: &Path,
     options: &DiffOptions,
 ) -> Result<Vec<Value>, DiffError> {
+    if !options.key_columns.is_empty() && options.ignore_row_order {
+        return Err(DiffError::new(
+            "invalid_option_combination",
+            "ignore_row_order cannot be combined with keyed comparison",
+        ));
+    }
     let (a_header, a_rows) = read_csv(a_path, "A")?;
     let (b_header, b_rows) = read_csv(b_path, "B")?;
     if options.key_columns.is_empty() {
-        diff_rows_positional(a_header, a_rows, b_header, b_rows, options)
+        if options.ignore_row_order {
+            diff_rows_multiset(a_header, a_rows, b_header, b_rows, options)
+        } else {
+            diff_rows_positional(a_header, a_rows, b_header, b_rows, options)
+        }
     } else {
         diff_rows_keyed(a_header, a_rows, b_header, b_rows, options)
     }
@@ -490,10 +606,20 @@ pub fn diff_csv_bytes(
     b_bytes: &[u8],
     options: &DiffOptions,
 ) -> Result<Vec<Value>, DiffError> {
+    if !options.key_columns.is_empty() && options.ignore_row_order {
+        return Err(DiffError::new(
+            "invalid_option_combination",
+            "ignore_row_order cannot be combined with keyed comparison",
+        ));
+    }
     let (a_header, a_rows) = read_csv_reader(std::io::Cursor::new(a_bytes), "A", "<memory:a>")?;
     let (b_header, b_rows) = read_csv_reader(std::io::Cursor::new(b_bytes), "B", "<memory:b>")?;
     if options.key_columns.is_empty() {
-        diff_rows_positional(a_header, a_rows, b_header, b_rows, options)
+        if options.ignore_row_order {
+            diff_rows_multiset(a_header, a_rows, b_header, b_rows, options)
+        } else {
+            diff_rows_positional(a_header, a_rows, b_header, b_rows, options)
+        }
     } else {
         diff_rows_keyed(a_header, a_rows, b_header, b_rows, options)
     }
@@ -525,6 +651,7 @@ mod tests {
             key_columns: vec!["id".to_string()],
             header_mode: HeaderMode::Strict,
             emit_unchanged: false,
+            ignore_row_order: false,
         }
     }
 
@@ -533,6 +660,7 @@ mod tests {
             key_columns: Vec::new(),
             header_mode: HeaderMode::Strict,
             emit_unchanged: false,
+            ignore_row_order: false,
         }
     }
 
@@ -634,6 +762,53 @@ mod tests {
             })
             .expect("added event for trailing row should be present");
         assert!(added.get("row").is_some());
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn multiset_mode_ignores_row_order_and_counts_duplicates() {
+        let a = write_csv("multiset-a", "id,name\n1,Alice\n2,Bob\n2,Bob\n3,Cara\n");
+        let b = write_csv("multiset-b", "id,name\n2,Bob\n1,Alice\n4,Dan\n2,Bob\n");
+
+        let mut options = positional_options();
+        options.ignore_row_order = true;
+        let events = diff_csv_files(&a, &b, &options).expect("multiset diff should succeed");
+
+        let stats = events.last().expect("stats should be present");
+        assert_eq!(
+            stats.get("rows_total_compared").and_then(Value::as_u64),
+            Some(3)
+        );
+        assert_eq!(stats.get("rows_added").and_then(Value::as_u64), Some(1));
+        assert_eq!(stats.get("rows_removed").and_then(Value::as_u64), Some(1));
+        assert_eq!(stats.get("rows_changed").and_then(Value::as_u64), Some(0));
+        assert_eq!(stats.get("rows_unchanged").and_then(Value::as_u64), Some(3));
+
+        let removed = events
+            .iter()
+            .find(|event| event.get("type").and_then(Value::as_str) == Some("removed"))
+            .expect("removed event should be present");
+        assert!(
+            removed.get("row_index").is_none(),
+            "multiset events should not emit row_index"
+        );
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn keyed_mode_rejects_ignore_row_order() {
+        let a = write_csv("invalid-combo-a", "id,name\n1,Alice\n");
+        let b = write_csv("invalid-combo-b", "id,name\n1,Alice\n");
+
+        let mut options = default_options();
+        options.ignore_row_order = true;
+        let err =
+            diff_csv_files(&a, &b, &options).expect_err("invalid option combination should fail");
+        assert_eq!(err.code, "invalid_option_combination");
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

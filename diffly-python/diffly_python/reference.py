@@ -94,6 +94,10 @@ def _comparison_columns(a_header: list[str], b_header: list[str], header_mode: s
     raise DiffError("invalid_header_mode", f"Unsupported header_mode: {header_mode}")
 
 
+def _row_signature(row: dict, compare_columns: list[str]):
+    return tuple(row[column] for column in compare_columns)
+
+
 def _diff_keyed(
     a_header: list[str],
     a_rows: list[tuple[int, dict]],
@@ -261,6 +265,72 @@ def _diff_positional(
     return events
 
 
+def _diff_multiset(
+    a_header: list[str],
+    a_rows: list[tuple[int, dict]],
+    b_header: list[str],
+    b_rows: list[tuple[int, dict]],
+    compare_columns: list[str],
+    emit_unchanged: bool,
+):
+    events = [
+        {
+            "type": "schema",
+            "columns_a": a_header,
+            "columns_b": b_header,
+        }
+    ]
+
+    rows_total_compared = 0
+    rows_added = 0
+    rows_removed = 0
+    rows_changed = 0
+    rows_unchanged = 0
+
+    grouped_a = {}
+    grouped_b = {}
+    for _, row in a_rows:
+        grouped_a.setdefault(_row_signature(row, compare_columns), []).append(row)
+    for _, row in b_rows:
+        grouped_b.setdefault(_row_signature(row, compare_columns), []).append(row)
+
+    for signature in sorted(set(grouped_a.keys()) | set(grouped_b.keys())):
+        rows_for_sig_a = grouped_a.get(signature, [])
+        rows_for_sig_b = grouped_b.get(signature, [])
+
+        matched = min(len(rows_for_sig_a), len(rows_for_sig_b))
+        rows_total_compared += matched
+        rows_unchanged += matched
+
+        if emit_unchanged:
+            for row in rows_for_sig_a[:matched]:
+                events.append({"type": "unchanged", "row": row})
+
+        if len(rows_for_sig_a) > len(rows_for_sig_b):
+            extra = rows_for_sig_a[matched:]
+            rows_removed += len(extra)
+            for row in extra:
+                events.append({"type": "removed", "row": row})
+
+        if len(rows_for_sig_b) > len(rows_for_sig_a):
+            extra = rows_for_sig_b[matched:]
+            rows_added += len(extra)
+            for row in extra:
+                events.append({"type": "added", "row": row})
+
+    events.append(
+        {
+            "type": "stats",
+            "rows_total_compared": rows_total_compared,
+            "rows_added": rows_added,
+            "rows_removed": rows_removed,
+            "rows_changed": rows_changed,
+            "rows_unchanged": rows_unchanged,
+        }
+    )
+    return events
+
+
 def diff_csv_files(
     a_path: str,
     b_path: str,
@@ -268,6 +338,7 @@ def diff_csv_files(
     mode: str = "positional",
     header_mode: str = "strict",
     emit_unchanged: bool = False,
+    ignore_row_order: bool = False,
 ):
     a_header, a_rows = _read_csv(Path(a_path), "A")
     b_header, b_rows = _read_csv(Path(b_path), "B")
@@ -275,6 +346,11 @@ def diff_csv_files(
 
     normalized_key_columns = list(key_columns or [])
     if mode == "keyed":
+        if ignore_row_order:
+            raise DiffError(
+                "invalid_option_combination",
+                "ignore_row_order cannot be combined with keyed comparison",
+            )
         return _diff_keyed(
             a_header,
             a_rows,
@@ -285,6 +361,15 @@ def diff_csv_files(
             emit_unchanged,
         )
     if mode == "positional":
+        if ignore_row_order:
+            return _diff_multiset(
+                a_header,
+                a_rows,
+                b_header,
+                b_rows,
+                compare_columns,
+                emit_unchanged,
+            )
         return _diff_positional(
             a_header,
             a_rows,

@@ -1,0 +1,6 @@
+{
+  "mode": "positional",
+  "header_mode": "strict",
+  "emit_unchanged": false,
+  "ignore_row_order": true
+}

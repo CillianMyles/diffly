@@ -781,6 +781,12 @@ pub fn run_keyed_to_sink_with_config(
     cancel_check: &dyn CancelCheck,
     sink: &mut dyn EventSink,
 ) -> Result<(), EngineError> {
+    if !options.key_columns.is_empty() && options.ignore_row_order {
+        return Err(EngineError::Diff(DiffError::new(
+            "invalid_option_combination",
+            "ignore_row_order cannot be combined with keyed comparison",
+        )));
+    }
     let events = if options.key_columns.is_empty() {
         diff_csv_files(a_path, b_path, options).map_err(EngineError::Diff)?
     } else if let Some(partitions) = run_config.partition_count {
@@ -1159,6 +1165,35 @@ mod tests {
             .find(|event| event.get("type").and_then(Value::as_str) == Some("changed"))
             .expect("changed event should be present");
         assert_eq!(changed.get("row_index").and_then(Value::as_u64), Some(2));
+
+        let _ = fs::remove_file(a);
+        let _ = fs::remove_file(b);
+    }
+
+    #[test]
+    fn run_rejects_keyed_ignore_row_order_combination() {
+        let a = write_csv("run-invalid-combo-a", "id,name\n1,Alice\n");
+        let b = write_csv("run-invalid-combo-b", "id,name\n1,Alice\n");
+
+        let mut sink = CollectSink { events: Vec::new() };
+        let mut options = default_options();
+        options.ignore_row_order = true;
+        let err = run_keyed_to_sink_with_config(
+            &a,
+            &b,
+            &options,
+            &EngineRunConfig::default(),
+            &NeverCancel,
+            &mut sink,
+        )
+        .expect_err("run should reject invalid option combination");
+        assert_eq!(
+            err,
+            EngineError::Diff(DiffError::new(
+                "invalid_option_combination",
+                "ignore_row_order cannot be combined with keyed comparison",
+            ))
+        );
 
         let _ = fs::remove_file(a);
         let _ = fs::remove_file(b);

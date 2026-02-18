@@ -5,11 +5,12 @@ This document defines the initial conformance target for `diffly`.
 ## Scope
 
 - Modes: `keyed` and `positional`.
+- Positional option: `ignore_row_order` (multiset semantics).
 - Input: two CSV files with header rows.
 - Output: JSONL event stream.
 - Goal: deterministic semantics for fixtures and cross-language conformance.
 
-`bag` mode is out of scope for v0.
+Named `bag` mode is out of scope for v0; unordered comparison is exposed via `ignore_row_order=true` on positional mode.
 
 ## CSV Parsing Rules
 
@@ -62,12 +63,25 @@ Given row sequences from A and B:
   - identical full row => `unchanged` (only if `emit_unchanged=true`)
   - otherwise => `changed`
 
+## Diff Behavior (`positional` with `ignore_row_order=true`)
+
+Treat each row as a multiset member (order-insensitive):
+
+- Build multiset counts for A and B by full-row signature (using comparison column order).
+- For each signature:
+  - matched count contributes to `rows_total_compared` and `rows_unchanged`
+  - extra count in A emits `removed` row events
+  - extra count in B emits `added` row events
+- `rows_changed` is always `0` in this mode.
+- `changed` events are not emitted in this mode.
+
 ## Deterministic Ordering
 
 To keep fixtures deterministic:
 
 - `keyed`: emit data events in ascending key tuple order (lexicographic string tuple order).
 - `positional`: emit data events in ascending `row_index` order.
+- `positional` + `ignore_row_order=true`: emit data events by ascending row signature; within one signature, preserve source encounter order.
 - For `changed`, emit the `changed` column list in comparison order:
   - `strict`: A header order
   - `sorted`: sorted column names
@@ -113,6 +127,15 @@ Event stream is JSONL.
   "type": "removed",
   "key": {"id": "1"},
   "row": {"id": "1", "name": "Alice"}
+}
+```
+
+### `added` (`positional` + `ignore_row_order=true` example)
+
+```json
+{
+  "type": "added",
+  "row": {"id": "4", "name": "Dan"}
 }
 ```
 
@@ -182,7 +205,8 @@ Each fixture directory contains:
   "mode": "keyed",
   "key_columns": ["id"],
   "header_mode": "strict",
-  "emit_unchanged": false
+  "emit_unchanged": false,
+  "ignore_row_order": false
 }
 ```
 
@@ -190,3 +214,4 @@ Each fixture directory contains:
 
 - `keyed`: `key_columns` is required and must be non-empty.
 - `positional`: `key_columns` is ignored and should be omitted.
+- `ignore_row_order`: valid only with `mode: positional`; for `mode: keyed` it is an invalid option combination.

@@ -177,6 +177,16 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: positional comparisons have no stable key tuple; row index is the deterministic identity for adds/removes/changes.
 
+### D-028 Ignore-row-order semantics
+
+- Decision: `ignore_row_order` applies only to positional comparisons and uses multiset semantics.
+- Status: active.
+- Rationale: it cleanly represents unordered row comparison while keeping keyed and positional semantics explicit.
+- Notes:
+  - in this mode, `rows_changed` is always `0`
+  - output row events are `added`/`removed` (plus optional `unchanged`), without `key` or `row_index`
+  - combining keyed compare with `ignore_row_order` is an invalid option combination
+
 ## Update Protocol
 
 When a new decision is made:

@@ -116,6 +116,11 @@ Last updated: 2026-02-18
 - Rebuilt Rust WASM package for web after positional support in `diffly-wasm`.
 - Updated CI smoke checks to include positional default-mode CLI runs for both Python and Rust.
 - Added `--ignore-column-order` CLI alias support (mapped to sorted header comparison) across Python CLI, Rust CLI, and `make diff` / `make diff-rust`.
+- Added `--ignore-row-order` support in Python/Rust runtime semantics (positional multiset mode) with:
+  - hard error for keyed + ignore-row-order combination
+  - spec + fixture coverage (`positional_ignore_row_order_basic_add_remove`)
+  - conformance runner config support via `ignore_row_order` fixture flag
+  - CLI plumbing (`diffly.py`, `diffly-cli`, `make diff`, `make diff-rust`)
 
 ## In Progress
 

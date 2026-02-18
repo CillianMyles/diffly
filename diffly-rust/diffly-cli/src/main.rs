@@ -40,6 +40,7 @@ struct CliArgs {
     output_path: Option<String>,
     pretty: bool,
     ignore_column_order: bool,
+    ignore_row_order: bool,
 }
 
 fn parse_key_csv(value: &str) -> Vec<String> {
@@ -64,6 +65,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut output_path: Option<String> = None;
     let mut pretty = false;
     let mut ignore_column_order = false;
+    let mut ignore_row_order = false;
 
     let args: Vec<String> = env::args().skip(1).collect();
     let mut i = 0usize;
@@ -146,6 +148,9 @@ fn parse_args() -> Result<CliArgs, String> {
             "--ignore-column-order" => {
                 ignore_column_order = true;
             }
+            "--ignore-row-order" => {
+                ignore_row_order = true;
+            }
             "-h" | "--help" => {
                 return Err(help_text());
             }
@@ -169,6 +174,7 @@ fn parse_args() -> Result<CliArgs, String> {
         output_path,
         pretty,
         ignore_column_order,
+        ignore_row_order,
     })
 }
 
@@ -185,6 +191,7 @@ fn help_text() -> String {
         "  --compare-by-keys <list>   Comma-separated key columns (enables keyed mode)",
         "  --header-mode <mode>       strict (default) | sorted",
         "  --ignore-column-order      Alias for --header-mode sorted",
+        "  --ignore-row-order         Ignore input row order (multiset comparison; valid without keys)",
         "  --emit-unchanged           Emit unchanged row events",
         "  --emit-progress            Emit progress events",
         "  --partitions <n>           Override partition count for partitioned engine path",
@@ -373,6 +380,7 @@ fn main() {
             args.header_mode
         },
         emit_unchanged: args.emit_unchanged,
+        ignore_row_order: args.ignore_row_order,
     };
     let mut run_config = EngineRunConfig::default();
     run_config.emit_progress = args.emit_progress;
