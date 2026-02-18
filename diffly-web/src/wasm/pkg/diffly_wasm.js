@@ -6,9 +6,10 @@
  * @param {string} key_columns_csv
  * @param {string} header_mode
  * @param {boolean} emit_unchanged
+ * @param {boolean} ignore_row_order
  * @returns {string}
  */
-export function diff_csv_bytes_json(a_bytes, b_bytes, key_columns_csv, header_mode, emit_unchanged) {
+export function diff_csv_bytes_json(a_bytes, b_bytes, key_columns_csv, header_mode, emit_unchanged, ignore_row_order) {
     let deferred6_0;
     let deferred6_1;
     try {
@@ -20,7 +21,7 @@ export function diff_csv_bytes_json(a_bytes, b_bytes, key_columns_csv, header_mo
         const len2 = WASM_VECTOR_LEN;
         const ptr3 = passStringToWasm0(header_mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len3 = WASM_VECTOR_LEN;
-        const ret = wasm.diff_csv_bytes_json(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, emit_unchanged);
+        const ret = wasm.diff_csv_bytes_json(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, emit_unchanged, ignore_row_order);
         var ptr5 = ret[0];
         var len5 = ret[1];
         if (ret[3]) {

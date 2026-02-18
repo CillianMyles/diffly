@@ -8,6 +8,7 @@ pub fn diff_csv_bytes_json(
     key_columns_csv: &str,
     header_mode: &str,
     emit_unchanged: bool,
+    ignore_row_order: bool,
 ) -> Result<String, JsValue> {
     let key_columns: Vec<String> = key_columns_csv
         .split(',')
@@ -23,7 +24,7 @@ pub fn diff_csv_bytes_json(
         key_columns,
         header_mode,
         emit_unchanged,
-        ignore_row_order: false,
+        ignore_row_order,
     };
 
     let events = diff_csv_bytes(a_bytes, b_bytes, &options)

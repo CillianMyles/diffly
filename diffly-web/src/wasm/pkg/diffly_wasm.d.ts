@@ -1,13 +1,13 @@
 /* tslint:disable */
 /* eslint-disable */
 
-export function diff_csv_bytes_json(a_bytes: Uint8Array, b_bytes: Uint8Array, key_columns_csv: string, header_mode: string, emit_unchanged: boolean): string;
+export function diff_csv_bytes_json(a_bytes: Uint8Array, b_bytes: Uint8Array, key_columns_csv: string, header_mode: string, emit_unchanged: boolean, ignore_row_order: boolean): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly diff_csv_bytes_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number, number, number];
+    readonly diff_csv_bytes_json: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

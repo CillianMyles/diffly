@@ -187,6 +187,12 @@ This file records active product/engineering decisions that affect implementatio
   - output row events are `added`/`removed` (plus optional `unchanged`), without `key` or `row_index`
   - combining keyed compare with `ignore_row_order` is an invalid option combination
 
+### D-029 Web compare controls model
+
+- Decision: web compare settings use a strategy selector (`positional`, `ignore row order`, `compare by key`) plus orthogonal toggles (`ignore column order`, `prefer wasm for small files`).
+- Status: active.
+- Rationale: avoids conflicting checkbox combinations and keeps advanced options explicit while preserving default positional behavior.
+
 ## Update Protocol
 
 When a new decision is made:

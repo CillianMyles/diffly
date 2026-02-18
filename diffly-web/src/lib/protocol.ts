@@ -22,6 +22,7 @@ export type CompareRequest = {
   aFile: File;
   bFile: File;
   keyColumns: string[];
+  ignoreRowOrder: boolean;
   headerMode: HeaderMode;
   emitUnchanged: boolean;
   maxSampleEvents: number;

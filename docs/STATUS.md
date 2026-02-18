@@ -121,6 +121,11 @@ Last updated: 2026-02-18
   - spec + fixture coverage (`positional_ignore_row_order_basic_add_remove`)
   - conformance runner config support via `ignore_row_order` fixture flag
   - CLI plumbing (`diffly.py`, `diffly-cli`, `make diff`, `make diff-rust`)
+- Updated web compare controls and worker wiring for new strategy model:
+  - strategy selector: positional, ignore-row-order, compare-by-key
+  - checkbox toggles: ignore-column-order, prefer-wasm-for-small-files
+  - worker protocol now includes `ignoreRowOrder`
+  - small-file WASM path now receives ignore-row-order flag
 
 ## In Progress
 

@@ -603,6 +603,7 @@ async function tryWasmCompare(request: CompareRequest): Promise<{ summary: DiffS
     request.keyColumns.join(","),
     request.headerMode,
     request.emitUnchanged,
+    request.ignoreRowOrder,
   ) as string;
   const events = JSON.parse(resultJson) as Array<Record<string, unknown>>;
   return extractSummaryAndSamples(events, request.maxSampleEvents);
@@ -942,9 +943,166 @@ async function runStreamingComparePositional(
   return { summary, samples };
 }
 
+async function runStreamingCompareMultiset(
+  request: CompareRequest,
+): Promise<{ summary: DiffSummary; samples: SampleEvent[] }> {
+  const summary: DiffSummary = {
+    rows_total_compared: 0,
+    rows_added: 0,
+    rows_removed: 0,
+    rows_changed: 0,
+    rows_unchanged: 0,
+  };
+  const samples: SampleEvent[] = [];
+
+  let headerA: string[] = [];
+  let headerB: string[] = [];
+  const rowsA: string[][] = [];
+  const rowsB: string[][] = [];
+  let compareIndexesA: number[] = [];
+  let compareIndexesB: number[] = [];
+
+  const isCancelled = () => cancelledRequestIds.has(request.requestId);
+
+  post({
+    type: "progress",
+    requestId: request.requestId,
+    phase: "partitioning",
+    done: 0,
+    total: request.aFile.size + request.bFile.size,
+  });
+
+  await parseCsvStreaming({
+    file: request.aFile,
+    side: "A",
+    isCancelled,
+    onHeader: (header) => {
+      normalizeHeader(header);
+      validateHeader(header, "A");
+      headerA = header;
+    },
+    onRow: (rowIndex, row) => {
+      if (row.length !== headerA.length) {
+        throw toError(
+          "row_width_mismatch",
+          `Row width mismatch in A at CSV row ${rowIndex}: expected ${headerA.length}, got ${row.length}`,
+        );
+      }
+      rowsA.push(row);
+    },
+    onProgress: (cursor) => {
+      post({
+        type: "progress",
+        requestId: request.requestId,
+        phase: "partitioning",
+        done: Math.min(cursor, request.aFile.size),
+        total: request.aFile.size + request.bFile.size,
+      });
+    },
+  });
+
+  await parseCsvStreaming({
+    file: request.bFile,
+    side: "B",
+    isCancelled,
+    onHeader: (header) => {
+      normalizeHeader(header);
+      validateHeader(header, "B");
+      headerB = header;
+      const compareCols = comparisonColumns(headerA, headerB, request.headerMode);
+      compareIndexesA = columnIndexes(headerA, compareCols);
+      compareIndexesB = columnIndexes(headerB, compareCols);
+    },
+    onRow: (rowIndex, row) => {
+      if (row.length !== headerB.length) {
+        throw toError(
+          "row_width_mismatch",
+          `Row width mismatch in B at CSV row ${rowIndex}: expected ${headerB.length}, got ${row.length}`,
+        );
+      }
+      rowsB.push(row);
+    },
+    onProgress: (cursor) => {
+      post({
+        type: "progress",
+        requestId: request.requestId,
+        phase: "diff_partitions",
+        done: request.aFile.size + Math.min(cursor, request.bFile.size),
+        total: request.aFile.size + request.bFile.size,
+      });
+    },
+  });
+
+  const groupedA = new Map<string, string[][]>();
+  const groupedB = new Map<string, string[][]>();
+  for (const row of rowsA) {
+    const sig = rowSignature(row, compareIndexesA);
+    const bucket = groupedA.get(sig);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      groupedA.set(sig, [row]);
+    }
+  }
+  for (const row of rowsB) {
+    const sig = rowSignature(row, compareIndexesB);
+    const bucket = groupedB.get(sig);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      groupedB.set(sig, [row]);
+    }
+  }
+
+  const signatures = [...new Set([...groupedA.keys(), ...groupedB.keys()])].sort();
+  for (const sig of signatures) {
+    if (isCancelled()) {
+      throw toError("cancelled", "Operation cancelled");
+    }
+
+    const rowsForA = groupedA.get(sig) ?? [];
+    const rowsForB = groupedB.get(sig) ?? [];
+    const matched = Math.min(rowsForA.length, rowsForB.length);
+    summary.rows_total_compared += matched;
+    summary.rows_unchanged += matched;
+
+    if (rowsForA.length > rowsForB.length) {
+      for (let i = matched; i < rowsForA.length; i += 1) {
+        summary.rows_removed += 1;
+        if (samples.length < request.maxSampleEvents) {
+          samples.push({
+            type: "removed",
+            before: rowToObject(headerA, rowsForA[i]),
+          });
+        }
+      }
+    }
+
+    if (rowsForB.length > rowsForA.length) {
+      for (let i = matched; i < rowsForB.length; i += 1) {
+        summary.rows_added += 1;
+        if (samples.length < request.maxSampleEvents) {
+          samples.push({
+            type: "added",
+            after: rowToObject(headerB, rowsForB[i]),
+          });
+        }
+      }
+    }
+  }
+
+  return { summary, samples };
+}
+
 async function runStreamingCompare(request: CompareRequest): Promise<{ summary: DiffSummary; samples: SampleEvent[] }> {
   if (request.keyColumns.length === 0) {
+    if (request.ignoreRowOrder) {
+      return runStreamingCompareMultiset(request);
+    }
     return runStreamingComparePositional(request);
+  }
+  if (request.ignoreRowOrder) {
+    throw toError("invalid_option_combination", "ignore_row_order cannot be combined with keyed comparison");
   }
   return runStreamingCompareKeyed(request);
 }
@@ -1168,6 +1326,9 @@ async function handleCompare(request: CompareRequest) {
   try {
     if (cancelledRequestIds.has(request.requestId)) {
       throw toError("cancelled", "Operation cancelled");
+    }
+    if (request.keyColumns.length > 0 && request.ignoreRowOrder) {
+      throw toError("invalid_option_combination", "ignore_row_order cannot be combined with keyed comparison");
     }
 
     let warning: string | undefined;

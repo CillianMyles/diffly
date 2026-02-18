@@ -14,6 +14,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 - Implemented semantics highlights:
   - compare mode default: positional (row-by-row)
   - keyed mode: enabled only when key columns are provided
+  - positional `ignore_row_order` support: multiset semantics
   - positional row events emit `row_index`
   - `header_mode`: `strict` (default) and `sorted`
   - duplicate column names: hard error
@@ -41,6 +42,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - wasm package generated into `diffly-web/src/wasm/pkg` via `make wasm-build-web`
   - fixed streaming worker hang and blank-line parse mismatch for non-WASM mode
   - sorted-header comparison now uses canonical column signatures in web worker path
+  - compare settings now use strategy selector (`positional` / `ignore row order` / `compare by key`) plus `ignore column order` + WASM preference toggles
 - CLI implementation:
   - supports `jsonl` (default), `json`, and `summary` output modes
   - supports `--out <path>` for file output

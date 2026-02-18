@@ -5,6 +5,7 @@ import { AlertTriangle, GitCompareArrows, Loader2, Upload, XCircle } from "lucid
 import type { HeaderMode, ResultMessage, SampleEvent, WorkerMessage } from "@/lib/protocol";
 
 type CompareState = "idle" | "running" | "done" | "error";
+type CompareStrategy = "positional" | "unordered" | "keyed";
 
 const WASM_SMALL_FILE_THRESHOLD_BYTES = 16 * 1024 * 1024;
 
@@ -130,7 +131,11 @@ function FilePicker({
 }
 
 function SampleRow({ sample }: { sample: SampleEvent }) {
-  const identity = sample.key ? JSON.stringify(sample.key) : `row_index=${sample.rowIndex ?? "?"}`;
+  const identity = sample.key
+    ? JSON.stringify(sample.key)
+    : sample.rowIndex
+      ? `row_index=${sample.rowIndex}`
+      : "unordered row";
   return (
     <div
       style={{
@@ -162,9 +167,9 @@ export function DiffWorkbench() {
 
   const [fileA, setFileA] = useState<File | null>(null);
   const [fileB, setFileB] = useState<File | null>(null);
-  const [compareByKeys, setCompareByKeys] = useState(false);
+  const [compareStrategy, setCompareStrategy] = useState<CompareStrategy>("positional");
   const [keyColumnsInput, setKeyColumnsInput] = useState("id");
-  const [headerMode, setHeaderMode] = useState<HeaderMode>("strict");
+  const [ignoreColumnOrder, setIgnoreColumnOrder] = useState(false);
   const [preferWasm, setPreferWasm] = useState(true);
 
   const [state, setState] = useState<CompareState>("idle");
@@ -245,7 +250,7 @@ export function DiffWorkbench() {
     if (!workerRef.current || !fileA || !fileB) {
       return;
     }
-    if (compareByKeys && keyColumns.length === 0) {
+    if (compareStrategy === "keyed" && keyColumns.length === 0) {
       setState("error");
       setError("At least one key column is required.");
       return;
@@ -265,8 +270,9 @@ export function DiffWorkbench() {
       requestId,
       aFile: fileA,
       bFile: fileB,
-      keyColumns: compareByKeys ? keyColumns : [],
-      headerMode,
+      keyColumns: compareStrategy === "keyed" ? keyColumns : [],
+      ignoreRowOrder: compareStrategy === "unordered",
+      headerMode: (ignoreColumnOrder ? "sorted" : "strict") as HeaderMode,
       emitUnchanged: false,
       maxSampleEvents: 30,
       preferWasm,
@@ -307,12 +313,20 @@ export function DiffWorkbench() {
           gap: 12,
         }}
       >
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input type="checkbox" checked={compareByKeys} onChange={(event) => setCompareByKeys(event.currentTarget.checked)} />
-          Compare by keys (unchecked = positional row-by-row)
+        <label style={{ display: "grid", gap: 8 }}>
+          <span style={{ fontWeight: 600 }}>Compare strategy</span>
+          <select
+            value={compareStrategy}
+            onChange={(event) => setCompareStrategy(event.currentTarget.value as CompareStrategy)}
+            style={{ borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", font: "inherit" }}
+          >
+            <option value="positional">Positional (default)</option>
+            <option value="unordered">Ignore row order</option>
+            <option value="keyed">Compare by key</option>
+          </select>
         </label>
 
-        {compareByKeys ? (
+        {compareStrategy === "keyed" ? (
           <div style={{ display: "grid", gap: 8 }}>
             <label htmlFor="keys" style={{ fontWeight: 600 }}>
               Key columns (comma-separated)
@@ -335,15 +349,12 @@ export function DiffWorkbench() {
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span>Header mode</span>
-            <select
-              value={headerMode}
-              onChange={(event) => setHeaderMode(event.currentTarget.value as HeaderMode)}
-              style={{ borderRadius: 8, border: "1px solid var(--border)", padding: "4px 8px" }}
-            >
-              <option value="strict">strict</option>
-              <option value="sorted">sorted</option>
-            </select>
+            <input
+              type="checkbox"
+              checked={ignoreColumnOrder}
+              onChange={(event) => setIgnoreColumnOrder(event.currentTarget.checked)}
+            />
+            Ignore column order
           </label>
 
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
