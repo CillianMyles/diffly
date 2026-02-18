@@ -37,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Header comparison mode: strict order match (default) or sorted-name match",
     )
     parser.add_argument(
+        "--ignore-column-order",
+        action="store_true",
+        help="Alias for --header-mode sorted",
+    )
+    parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print JSON output instead of compact JSONL",
@@ -59,13 +64,15 @@ def main() -> int:
         key_columns.extend([value.strip() for value in args.compare_by_keys.split(",") if value.strip()])
     mode = "keyed" if key_columns else "positional"
 
+    header_mode = "sorted" if args.ignore_column_order else args.header_mode
+
     try:
         events = diff_csv_files(
             a_path=args.a,
             b_path=args.b,
             key_columns=key_columns,
             mode=mode,
-            header_mode=args.header_mode,
+            header_mode=header_mode,
             emit_unchanged=args.emit_unchanged,
         )
     except DiffError as err:

@@ -39,6 +39,7 @@ struct CliArgs {
     output_format: OutputFormat,
     output_path: Option<String>,
     pretty: bool,
+    ignore_column_order: bool,
 }
 
 fn parse_key_csv(value: &str) -> Vec<String> {
@@ -62,6 +63,7 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut output_format = OutputFormat::Jsonl;
     let mut output_path: Option<String> = None;
     let mut pretty = false;
+    let mut ignore_column_order = false;
 
     let args: Vec<String> = env::args().skip(1).collect();
     let mut i = 0usize;
@@ -141,6 +143,9 @@ fn parse_args() -> Result<CliArgs, String> {
             "--pretty" => {
                 pretty = true;
             }
+            "--ignore-column-order" => {
+                ignore_column_order = true;
+            }
             "-h" | "--help" => {
                 return Err(help_text());
             }
@@ -163,6 +168,7 @@ fn parse_args() -> Result<CliArgs, String> {
         output_format,
         output_path,
         pretty,
+        ignore_column_order,
     })
 }
 
@@ -178,6 +184,7 @@ fn help_text() -> String {
         "  --key <column>             Key column (repeat for keyed mode)",
         "  --compare-by-keys <list>   Comma-separated key columns (enables keyed mode)",
         "  --header-mode <mode>       strict (default) | sorted",
+        "  --ignore-column-order      Alias for --header-mode sorted",
         "  --emit-unchanged           Emit unchanged row events",
         "  --emit-progress            Emit progress events",
         "  --partitions <n>           Override partition count for partitioned engine path",
@@ -360,7 +367,11 @@ fn main() {
 
     let options = DiffOptions {
         key_columns: args.key_columns,
-        header_mode: args.header_mode,
+        header_mode: if args.ignore_column_order {
+            HeaderMode::Sorted
+        } else {
+            args.header_mode
+        },
         emit_unchanged: args.emit_unchanged,
     };
     let mut run_config = EngineRunConfig::default();

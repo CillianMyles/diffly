@@ -115,6 +115,7 @@ Last updated: 2026-02-18
   - sample rendering supports either keyed identity or positional `row_index`
 - Rebuilt Rust WASM package for web after positional support in `diffly-wasm`.
 - Updated CI smoke checks to include positional default-mode CLI runs for both Python and Rust.
+- Added `--ignore-column-order` CLI alias support (mapped to sorted header comparison) across Python CLI, Rust CLI, and `make diff` / `make diff-rust`.
 
 ## In Progress
 
