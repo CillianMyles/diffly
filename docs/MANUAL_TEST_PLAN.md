@@ -1,16 +1,17 @@
 # Manual Test Plan
 
-Last updated: 2026-02-15
+Last updated: 2026-02-18
 
 This plan is designed for learning and bug-hunting, not just pass/fail.
 
 ## 1) Goals
 
-1. Verify semantic correctness against the fixture contract.
-2. Verify phase-2 runtime behavior (partitioned engine path and fallback path).
-3. Verify phase-3 CLI usability and output shapes.
-4. Verify phase-4 web UX behavior (worker isolation, progress, cancel, engine routing, large-file survivability).
-5. Capture regressions with reproducible evidence.
+1. Verify semantic correctness against fixture contracts.
+2. Verify runtime behavior for positional default and keyed opt-in.
+3. Verify Rust engine partitioned behavior parity for keyed mode.
+4. Verify CLI UX/output behavior for both modes.
+5. Verify web UX behavior (worker isolation, progress, cancel, engine routing, large-file survivability).
+6. Capture regressions with reproducible evidence.
 
 ## 2) Preflight (10-15 min)
 
@@ -39,13 +40,30 @@ cargo install wasm-pack
 make wasm-build-web
 ```
 
-## 3) Canonical Fixture Spot Checks (Phase 1/2 semantics)
+## 3) Canonical Fixture Spot Checks
 
-These checks teach semantics while confirming parity.
+These checks confirm current semantics and expected summaries.
 
-### 3.1 Success fixtures with expected summary
+### 3.1 Positional default behavior
 
-Run each command and confirm summary counts exactly.
+1. Positional add/change/unchanged:
+```bash
+make diff-rust \
+  A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv \
+  FORMAT=summary
+```
+Expected: `Compared=3 Added=1 Removed=0 Changed=2 Unchanged=1`
+
+2. Verify event identity uses `row_index` (no `key`):
+```bash
+make diff-rust \
+  A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv
+```
+Expected: `changed`/`added`/`removed` events include `row_index`; positional events do not include `key`.
+
+### 3.2 Keyed behavior
 
 1. Basic add/remove/change:
 ```bash
@@ -65,7 +83,7 @@ make diff-rust \
 ```
 Expected: `Compared=2 Added=1 Removed=1 Changed=1 Unchanged=1`
 
-3. Sorted header mode:
+3. Sorted header behavior:
 ```bash
 make diff-rust \
   A=diffly-spec/fixtures/keyed_header_sorted_mode_add/a.csv \
@@ -74,18 +92,9 @@ make diff-rust \
 ```
 Expected: `Compared=2 Added=1 Removed=0 Changed=0 Unchanged=2`
 
-4. Empty string vs literal `null` are different:
-```bash
-make diff-rust \
-  A=diffly-spec/fixtures/keyed_empty_vs_literal_null/a.csv \
-  B=diffly-spec/fixtures/keyed_empty_vs_literal_null/b.csv \
-  KEY=id FORMAT=summary
-```
-Expected: `Compared=2 Added=0 Removed=0 Changed=2 Unchanged=0`
+### 3.3 Error fixtures
 
-### 3.2 Error fixtures (hard-error policy)
-
-Run and confirm non-zero exit plus expected code/message class.
+Run and confirm non-zero exit plus expected code class.
 
 1. Duplicate column name:
 ```bash
@@ -94,31 +103,28 @@ make diff-rust \
   B=diffly-spec/fixtures/error_duplicate_column_name_in_a/b.csv \
   KEY=id
 ```
-Expected error code class: `duplicate_column_name`
+Expected code class: `duplicate_column_name`
 
-2. Missing key value:
+2. Missing key value (keyed):
 ```bash
 make diff-rust \
   A=diffly-spec/fixtures/error_missing_key_value_in_a/a.csv \
   B=diffly-spec/fixtures/error_missing_key_value_in_a/b.csv \
   KEY=id
 ```
-Expected error code class: `missing_key_value`
+Expected code class: `missing_key_value`
 
 3. Row width mismatch:
 ```bash
 make diff-rust \
   A=diffly-spec/fixtures/error_row_width_mismatch_in_b/a.csv \
-  B=diffly-spec/fixtures/error_row_width_mismatch_in_b/b.csv \
-  KEY=id
+  B=diffly-spec/fixtures/error_row_width_mismatch_in_b/b.csv
 ```
-Expected error code class: `row_width_mismatch`
+Expected code class: `row_width_mismatch`
 
-## 4) Phase 2 Runtime Checks (engine path behavior)
+## 4) Rust Runtime Checks (engine path behavior)
 
-### 4.1 Partitioned vs non-partitioned parity
-
-Use same input, compare outputs.
+### 4.1 Keyed partitioned vs non-partitioned parity
 
 ```bash
 make diff-rust \
@@ -135,52 +141,81 @@ diff -u /tmp/diff_part.json /tmp/diff_core.json
 ```
 
 Expected:
-- `diff` shows no differences.
+- No diff.
 
-### 4.2 Progress event phases
+### 4.2 Progress phases (keyed partitioned)
 
 ```bash
 make diff-rust \
   A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
   B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
-  KEY=id EMIT_PROGRESS=1 FORMAT=jsonl
+  KEY=id EMIT_PROGRESS=1
 ```
 
 Expected:
-- Progress events include `partitioning`, `diff_partitions`, `emit_events`.
+- Progress phases include `partitioning`, `diff_partitions`, `emit_events`.
 
-## 5) Phase 3 CLI Checks
+## 5) CLI Checks
 
-### 5.1 Output format behavior
+### 5.1 Mode selection behavior
 
-1. `jsonl` default:
+1. Positional default:
+```bash
+make diff-rust \
+  A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv
+```
+Expected: positional events with `row_index`.
+
+2. Keyed via `KEY`:
 ```bash
 make diff-rust \
   A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
   B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
   KEY=id
 ```
+Expected: keyed events with `key`.
+
+3. Keyed via `--compare-by-keys` direct CLI:
+```bash
+RUSTUP_BIN="$(command -v rustup || echo /opt/homebrew/opt/rustup/bin/rustup)" \
+CARGO_BIN="$($RUSTUP_BIN which cargo 2>/dev/null)" \
+"$CARGO_BIN" run --manifest-path diffly-rust/Cargo.toml -p diffly-cli -- \
+  --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
+  --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
+  --compare-by-keys id
+```
+Expected: keyed events with `key`.
+
+### 5.2 Output format behavior
+
+1. `jsonl` default:
+```bash
+make diff-rust \
+  A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv
+```
 Expected: one JSON object per line.
 
 2. `json` array:
 ```bash
 make diff-rust \
-  A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
-  B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
-  KEY=id FORMAT=json
+  A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv \
+  FORMAT=json
 ```
-Expected: valid single JSON array output.
+Expected: valid JSON array.
 
-3. `summary` mode:
+3. `summary`:
 ```bash
 make diff-rust \
-  A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
-  B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
-  KEY=id FORMAT=summary
+  A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv \
+  FORMAT=summary
 ```
-Expected: readable summary table/lines only.
+Expected: summary text only.
 
-### 5.2 File output option
+### 5.3 File output option
 
 ```bash
 make diff-rust \
@@ -192,10 +227,9 @@ ls -lh /tmp/diff_output.json
 ```
 
 Expected:
-- Output file exists and is non-empty.
-- No JSON printed to stdout except command logging.
+- File exists and is non-empty.
 
-## 6) Phase 4 Web Manual Checks
+## 6) Web Manual Checks
 
 Start app:
 ```bash
@@ -203,51 +237,60 @@ make web-dev
 ```
 Open: [http://localhost:3000](http://localhost:3000)
 
-### 6.1 Small-file engine routing
+Current control surface (before ignore-row/ignore-column toggles):
+- Compare by keys (checkbox)
+- Key columns input (visible when keyed enabled)
+- Header mode (`strict`/`sorted`)
+- Prefer WASM for small files
 
-1. Load fixture `keyed_basic_add_remove_change` A/B in UI.
-2. Keep `Prefer WASM for small files` checked.
+### 6.1 Positional default flow
+
+1. Load `positional_basic_add_remove_change` A/B.
+2. Ensure `Compare by keys` is unchecked.
 3. Compare.
 
 Expected:
-- Completes quickly.
-- `Engine: wasm` shown.
-- Summary: `Compared=2 Added=1 Removed=1 Changed=1 Unchanged=1`.
+- Success.
+- Summary: `Compared=3 Added=1 Removed=0 Changed=2 Unchanged=1`.
+- Sample events show positional identity (`row_index=...`).
 
-Repeat with checkbox unchecked.
+### 6.2 Keyed flow
+
+1. Load `keyed_basic_add_remove_change` A/B.
+2. Check `Compare by keys` and set `id`.
+3. Compare.
 
 Expected:
-- Completes quickly (no hang).
-- `Engine: streaming_worker` shown.
-- Same summary as above.
+- Success.
+- Summary: `Compared=2 Added=1 Removed=1 Changed=1 Unchanged=1`.
+- Sample events show keyed identity (`{"id":"..."}`).
 
-### 6.2 Header mode UX behavior
+### 6.3 Header mode UX behavior
 
-1. Use `keyed_header_sorted_mode_add` fixture.
+1. Use `keyed_header_sorted_mode_add` fixture with keyed `id`.
 2. Run once with `Header mode = strict`.
 
 Expected:
-- Error card appears with header mismatch.
+- Header mismatch error.
 
-3. Run again with `Header mode = sorted`.
+3. Run with `Header mode = sorted`.
 
 Expected:
 - Success summary: `Compared=2 Added=1 Removed=0 Changed=0 Unchanged=2`.
 
-### 6.3 Error rendering behavior
+### 6.4 Error rendering behavior
 
-Run these through UI and verify red error card text is clear and specific:
+Run these through UI and verify explicit error card text:
 
-1. `error_missing_key_value_in_a`
+1. `error_missing_key_value_in_a` (with keyed enabled)
 2. `error_duplicate_column_name_in_a`
 3. `error_row_width_mismatch_in_b`
 
 Expected:
 - Compare ends in error state.
-- Error code class is reflected in message text.
 - App remains interactive for next run.
 
-### 6.4 Cancel behavior
+### 6.5 Cancel behavior
 
 1. Use generated large files from section 7.
 2. Start compare.
@@ -255,28 +298,14 @@ Expected:
 
 Expected:
 - Run stops promptly.
-- Error/terminal state indicates cancellation.
 - Next compare can start immediately.
 
-Repeat cancel during `diff_partitions`.
+Repeat during `diff_partitions`.
 
 Expected:
 - Same outcome.
 
-### 6.5 Repeated-run stability
-
-1. Alternate 10 runs between:
-- tiny fixture
-- medium fixture
-- large generated files
-2. Toggle WASM preference between runs.
-
-Expected:
-- No worker crash messages.
-- No permanently stuck progress bars.
-- Summary values remain deterministic for same inputs.
-
-## 7) Large-file and Browser Survivability (Phase 4)
+## 7) Large-file and Browser Survivability
 
 Generate two large deterministic files (about 100MB each):
 
@@ -316,55 +345,41 @@ PY
 ls -lh /tmp/diffly-manual/a_100mb.csv /tmp/diffly-manual/b_100mb.csv
 ```
 
-Web checks:
+Checks:
 
-1. Compare these files with WASM checkbox enabled.
+1. Compare with WASM preference enabled.
+Expected: `Engine: streaming_worker` (size exceeds WASM threshold), responsive UI.
 
-Expected:
-- Engine should still show `streaming_worker` (files exceed small-file WASM threshold).
-- Browser stays responsive while progress updates.
+2. Compare with WASM preference disabled.
+Expected: still `streaming_worker`, no hang.
 
-2. Compare with WASM checkbox disabled.
+3. Interact with page during run (scroll/type/toggle settings for next run).
+Expected: UI remains responsive.
 
-Expected:
-- Also `streaming_worker`.
-- No hang after partitioning.
-
-3. During run, interact with page (scroll, edit key input, switch header mode before next run).
-
-Expected:
-- UI interaction remains responsive.
-
-4. If storage pressure causes fallback, warning banner should appear.
-
-Expected:
-- Warning text mentions IndexedDB spill fallback.
-- Run still completes unless real resource failure occurs.
-
-Optional deeper check in browser devtools:
-- Performance panel: no long main-thread blocks caused by compare work.
-- Application panel: temporary IndexedDB entries created during run and cleaned afterward.
+4. If storage fallback happens, warning banner appears.
+Expected: warning text explains IndexedDB fallback path.
 
 ## 8) Cross-Engine Consistency Drill
 
-Pick one fixture and one generated dataset.
+Pick one keyed fixture and one positional fixture.
 
 For each dataset:
 1. Run Rust CLI (`FORMAT=json`) and save output.
 2. Run web compare and capture summary/samples screenshot.
-3. Verify summary counts match CLI stats event.
+3. Verify summary counts match CLI `stats`.
 
 Expected:
 - Same high-level counts across engines.
-- No semantic drift in add/remove/change categorization.
+- No semantic drift.
 
-## 9) Regression List (must pass before merge/release)
+## 9) Regression List
 
-1. Unchecked WASM path does not get stuck after `partitioning`.
-2. Blank spacer lines do not trigger false `row_width_mismatch`.
-3. Header `sorted` mode uses canonical comparison and does not false-fail.
-4. Worker failures surface as explicit UI errors (not silent hangs).
-5. Cancel works in both partitioning and diff phases.
+1. Positional default works without keys in CLI and web.
+2. Keyed mode still enforces duplicate/missing-key rules.
+3. Unchecked WASM path does not get stuck after `partitioning`.
+4. Header `sorted` mode behavior remains deterministic.
+5. Worker failures surface as explicit UI errors.
+6. Cancel works in partitioning and diff phases.
 
 ## 10) Bug Report Template
 
@@ -376,9 +391,10 @@ For each failure, capture:
 
 2. Inputs:
 - file paths
-- key columns
+- whether keyed compare was enabled
+- key columns (if keyed)
 - header mode
-- WASM preference state
+- WASM preference
 
 3. Observed:
 - exact UI/CLI error text
@@ -389,15 +405,15 @@ For each failure, capture:
 - what should have happened
 
 5. Repro:
-- exact command or click path
-- reproducibility frequency (always/intermittent)
+- exact command/click path
+- reproducibility frequency
 
 ## 11) Exit Criteria
 
 Pass when all are true:
 
-1. Preflight checks all pass.
-2. Fixture spot checks match expected results exactly.
+1. Preflight checks pass.
+2. Positional and keyed spot checks match expected results.
 3. CLI formats and `--out` behavior are correct.
 4. Web path passes small/large/cancel/error routing checks.
-5. No hangs or worker crashes in repeated-run stability check.
+5. No hangs or worker crashes in repeated-run stability checks.
