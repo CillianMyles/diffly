@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "diffly web",
-  description: "Browser CSV diff powered by worker + Rust WASM",
+  title: "Diffly",
+  description: "Performant local CSV diffing, in your browser, powered by Rust WASM and workers",
 };
 
 export default function RootLayout({

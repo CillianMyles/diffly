@@ -24,7 +24,7 @@ export default function Home() {
                 boxShadow: "0 0 0 8px var(--brand-soft)",
               }}
             />
-            <strong style={{ fontSize: 22, letterSpacing: -0.4 }}>diffly web</strong>
+            <strong style={{ fontSize: 22, letterSpacing: -0.4 }}>Diffly</strong>
           </div>
         </div>
       </header>

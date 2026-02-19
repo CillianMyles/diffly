@@ -291,10 +291,11 @@ export function DiffWorkbench() {
   return (
     <section style={{ display: "grid", gap: 20 }}>
       <div style={{ display: "grid", gap: 14 }}>
-        <h1 style={{ margin: 0, fontSize: 36, letterSpacing: -0.8 }}>Browser CSV diff that survives big files</h1>
+        <h1 style={{ margin: 0, fontSize: 36, letterSpacing: -0.8 }}>Comapre CSV Files</h1>
         <p style={{ margin: 0, color: "var(--muted)", maxWidth: 760 }}>
-          DiffyData-inspired UI, but execution stays off the main thread. For large files this uses streaming worker logic, and
-          for smaller files it can use Rust/WASM.
+          Performant local CSV diffing, in your browser, powered by Rust WASM and web workers.
+          No server required. No data leaves your machine. It will not crash your tab, browser, or machine.
+          It just works.
         </p>
       </div>
 
@@ -320,9 +321,9 @@ export function DiffWorkbench() {
             onChange={(event) => setCompareStrategy(event.currentTarget.value as CompareStrategy)}
             style={{ borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", font: "inherit" }}
           >
-            <option value="positional">Positional (default)</option>
-            <option value="unordered">Ignore row order</option>
-            <option value="keyed">Compare by key</option>
+            <option value="positional">Rows must be in the same order</option>
+            <option value="unordered">Rows can be in any order</option>
+            <option value="keyed">Compare rows that have the same key</option>
           </select>
         </label>
 
