@@ -6,7 +6,7 @@ Last updated: 2026-03-11
 
 - Phase: Phase 4 MVP complete (`diffly-web` worker + wasm)
 - Branch: `main`
-- Last pushed commit at time of this update: `3bc6f1c`
+- Last pushed commit at time of this update: `17b126e`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 20
 - Autonomy mode: active (continue until done or hard-blocked)
