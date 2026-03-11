@@ -43,6 +43,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - fixed streaming worker hang and blank-line parse mismatch for non-WASM mode
   - sorted-header comparison now uses canonical column signatures in web worker path
   - compare settings now use strategy selector (`positional` / `ignore row order` / `compare by key`) plus `ignore column order` + WASM preference toggles
+  - sample rendering now preserves `changed`/`delta` metadata and displays git-style red/green before/after panels with inline changed-token emphasis
 - CLI implementation:
   - supports `jsonl` (default), `json`, and `summary` output modes
   - supports `--out <path>` for file output

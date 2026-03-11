@@ -1,12 +1,12 @@
 # Status
 
-Last updated: 2026-02-18
+Last updated: 2026-03-11
 
 ## Snapshot
 
 - Phase: Phase 4 MVP complete (`diffly-web` worker + wasm)
 - Branch: `main`
-- Last pushed commit at time of this update: `e569fda`
+- Last pushed commit at time of this update: `3bc6f1c`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 20
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -131,16 +131,22 @@ Last updated: 2026-02-18
   - `README.md` now documents `IGNORE_ROW_ORDER` and `IGNORE_COLUMN_ORDER` usage
   - `diffly-web/README.md` now documents strategy-based controls
   - `docs/MANUAL_TEST_PLAN.md` updated to include ignore-row-order and ignore-column-order validation flows
+- Upgraded web sample diff rendering to a git-style view:
+  - worker/protocol now preserve `changed` columns and per-field `delta` metadata across WASM and streaming paths
+  - sample events render red/green before/after panels with stronger inline changed-token highlighting
+  - added shared diff color tokens in web globals
 
 ## In Progress
 
 - Keep Rust/Python fixture parity stable while adding browser runtime behavior.
 - Harden web large-file behavior with OPFS/IndexedDB spill and browser-scale regressions.
+- Continue tightening diff inspection UX now that sample rows preserve field-level delta metadata.
 
 ## Next
 
 1. Move browser large-file path from in-memory maps toward OPFS-backed partition spill.
 2. Add browser-level regression tests for 100MB+ inputs (progress/cancel/non-freeze assertions).
+3. Consider exposing the same richer `changed`/`delta` typing to any future non-web inspection surfaces that want git-style rendering.
 
 ## Blockers
 
@@ -153,6 +159,7 @@ Last updated: 2026-02-18
 - `make test-spec-rust-engine PARTITIONS=4`
 - `make web-typecheck`
 - `npm --prefix diffly-web run build`
+- `npm --prefix diffly-web run typecheck`
 - `firebase deploy --only hosting`
 - GitHub Actions: run `CI` workflow (`push main` or `workflow_dispatch`) and confirm deploy job succeeds
 - `python3 -m compileall diffly-python`
