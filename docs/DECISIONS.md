@@ -199,6 +199,14 @@ This file records active product/engineering decisions that affect implementatio
 - Status: active.
 - Rationale: keeps user-facing terminology simple while preserving existing deterministic header-mode semantics internally.
 
+## 2026-03-11
+
+### D-031 Rust CLI terminal diff view
+
+- Decision: add a separate Rust CLI `diff` output mode for human terminal inspection, instead of changing `summary` or the machine-readable event shapes.
+- Status: active.
+- Rationale: preserves `jsonl` / `json` contract stability while allowing git-style red/green rendering driven by existing `changed`, `before`, `after`, and `delta` metadata.
+
 ## Update Protocol
 
 When a new decision is made:

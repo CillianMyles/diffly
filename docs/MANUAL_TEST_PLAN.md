@@ -233,6 +233,19 @@ make diff-rust \
 ```
 Expected: summary text only.
 
+4. `diff` terminal inspector:
+```bash
+NO_COLOR=1 make diff-rust \
+  A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv \
+  B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv \
+  KEY=id FORMAT=diff
+```
+Expected:
+- changed rows are listed before added/removed rows
+- changed entries show separate before/after blocks
+- changed cells include inline substring markers such as `[+ine+]` when color is disabled
+- added rows render as `+` blocks and removed rows render as `-` blocks
+
 ### 5.3 File output option
 
 ```bash

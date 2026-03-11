@@ -6,7 +6,7 @@ Last updated: 2026-03-11
 
 - Phase: Phase 4 MVP complete (`diffly-web` worker + wasm)
 - Branch: `main`
-- Last pushed commit at time of this update: `17b126e`
+- Last pushed commit at time of this update: `c92346a`
 - CI: GitHub Actions enabled for PRs and pushes to `main`
 - Fixture count: 20
 - Autonomy mode: active (continue until done or hard-blocked)
@@ -152,18 +152,23 @@ Last updated: 2026-03-11
   - Python subprocess tests for help text, composite key shorthand, and ignore-column-order alias
   - Rust CLI parser tests for help text, composite key shorthand, and partition argument validation
 - Added web ESLint setup and CI coverage (`make web-lint`)
+- Added Rust CLI terminal diff inspector mode:
+  - `--format diff` / `FORMAT=diff`
+  - changed rows render first with red/green before/after blocks
+  - changed cell values use inline substring emphasis sourced from existing event metadata
+  - added/removed rows render as green/red field blocks
 
 ## In Progress
 
 - Keep Rust/Python fixture parity stable while adding browser runtime behavior.
 - Harden web large-file behavior with OPFS/IndexedDB spill and browser-scale regressions.
-- Continue tightening diff inspection UX now that sample rows preserve field-level delta metadata.
+- Continue tightening terminal/web diff inspection UX now that both surfaces preserve field-level delta metadata.
 
 ## Next
 
 1. Move browser large-file path from in-memory maps toward OPFS-backed partition spill.
 2. Add browser-level regression tests for 100MB+ inputs (progress/cancel/non-freeze assertions).
-3. Consider exposing the same richer `changed`/`delta` typing to any future non-web inspection surfaces that want git-style rendering.
+3. Evaluate whether CLI `diff` mode should eventually stream directly from JSONL events for very large result sets instead of collecting the full run.
 
 ## Blockers
 
@@ -191,6 +196,7 @@ Last updated: 2026-03-11
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/positional_basic_add_remove_change/a.csv --b diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv --b diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv --ignore-row-order`
 - `make diff-rust A=diffly-spec/fixtures/positional_basic_add_remove_change/a.csv B=diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`
+- `NO_COLOR=1 make diff-rust A=diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv B=diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv KEY=id FORMAT=diff`
 - `make diff-rust A=diffly-spec/fixtures/keyed_header_sorted_mode_add/a.csv B=diffly-spec/fixtures/keyed_header_sorted_mode_add/b.csv KEY=id IGNORE_COLUMN_ORDER=1`
 - `make diff-rust A=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/a.csv B=diffly-spec/fixtures/positional_ignore_row_order_basic_add_remove/b.csv IGNORE_ROW_ORDER=1`
 
