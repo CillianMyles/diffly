@@ -461,9 +461,20 @@ make diff-rust A=a.csv B=b.csv FORMAT=json
 # human-readable summary table
 make diff-rust A=a.csv B=b.csv FORMAT=summary
 
+# git-style terminal diff inspector
+make diff-rust A=a.csv B=b.csv KEY=id FORMAT=diff
+
 # write any mode to file
 make diff-rust A=a.csv B=b.csv FORMAT=json OUT=/tmp/diff.json
 ```
+
+`FORMAT=diff` is a human-only terminal view. It keeps `jsonl`/`json` unchanged and renders:
+- changed rows first
+- red `before` and green `after` blocks
+- field-level emphasis using existing `changed` / `before` / `after` / `delta` event data
+- inline substring markers for changed cell values when color is disabled
+
+Set `NO_COLOR=1` if you want plain-text diff output without ANSI styling.
 
 For keyed mode in any format, include `KEY=...` or `KEYS=...`.
 

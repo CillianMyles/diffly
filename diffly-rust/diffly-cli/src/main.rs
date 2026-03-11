@@ -3,10 +3,13 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 
+mod render;
+
 use diffly_core::{DiffOptions, HeaderMode};
 use diffly_engine::{
     run_keyed_to_sink_with_config, EngineError, EngineRunConfig, EventSink, NeverCancel,
 };
+use render::build_diff_report;
 use serde_json::{json, Value};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -14,6 +17,7 @@ enum OutputFormat {
     Jsonl,
     Json,
     Summary,
+    Diff,
 }
 
 impl OutputFormat {
@@ -22,6 +26,7 @@ impl OutputFormat {
             "jsonl" => Ok(Self::Jsonl),
             "json" => Ok(Self::Json),
             "summary" => Ok(Self::Summary),
+            "diff" => Ok(Self::Diff),
             _ => Err(format!("Unsupported --format value: {value}")),
         }
     }
@@ -201,7 +206,7 @@ fn help_text() -> String {
         "  --emit-progress            Emit progress events",
         "  --partitions <n>           Override partition count for partitioned engine path",
         "  --no-partitions            Force non-partitioned core path",
-        "  --format <mode>            jsonl (default) | json | summary",
+        "  --format <mode>            jsonl (default) | json | summary | diff",
         "  --out <path>               Write output to a file instead of stdout",
         "  --pretty                   Pretty-print JSON",
         "",
@@ -422,7 +427,7 @@ fn main() {
                 render_error_and_exit(err);
             }
         }
-        OutputFormat::Json | OutputFormat::Summary => {
+        OutputFormat::Json | OutputFormat::Summary | OutputFormat::Diff => {
             let mut sink = CollectSink { events: Vec::new() };
             if let Err(err) = run_keyed_to_sink_with_config(
                 Path::new(&args.a_path),
@@ -438,6 +443,10 @@ fn main() {
             let rendered = match args.output_format {
                 OutputFormat::Json => encode_json(&Value::Array(sink.events), args.pretty),
                 OutputFormat::Summary => build_summary_report(&sink.events),
+                OutputFormat::Diff => {
+                    let use_color = args.output_path.is_none() && env::var_os("NO_COLOR").is_none();
+                    build_diff_report(&sink.events, use_color)
+                }
                 OutputFormat::Jsonl => unreachable!(),
             };
             if let Err(message) = write_output(args.output_path.as_deref(), &rendered) {
@@ -475,6 +484,16 @@ mod tests {
             vec!["id".to_string(), "region".to_string()]
         );
         assert_eq!(args.output_format, OutputFormat::Jsonl);
+    }
+
+    #[test]
+    fn parse_args_supports_diff_output_format() {
+        let args = parse_args_from(&as_args(&[
+            "--a", "a.csv", "--b", "b.csv", "--format", "diff",
+        ]))
+        .expect("expected successful parse");
+
+        assert_eq!(args.output_format, OutputFormat::Diff);
     }
 
     #[test]

@@ -30,7 +30,7 @@ help:
 	@echo "    make test-spec-rust        Run diffly spec fixtures against Rust core"
 	@echo "    make test-spec-rust-engine [PARTITIONS=N]  Run fixtures against Rust engine path (default N=1)"
 	@echo "    make diff A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1]  Run CSV diff (positional default; keyed when keys provided)"
-	@echo "    make diff-rust A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary] [OUT=path]  Run Rust CSV diff (positional default; keyed when keys provided)"
+	@echo "    make diff-rust A=... B=... [KEY=...|KEYS=...] [HEADER_MODE=strict|sorted] [IGNORE_COLUMN_ORDER=1] [IGNORE_ROW_ORDER=1] [EMIT_PROGRESS=1] [PARTITIONS=N] [NO_PARTITIONS=1] [FORMAT=jsonl|json|summary|diff] [OUT=path]  Run Rust CSV diff (positional default; keyed when keys provided)"
 	@echo "    make web-install           Install diffly-web dependencies"
 	@echo "    make web-lint              Lint diffly-web"
 	@echo "    make web-dev               Run diffly-web dev server"
