@@ -1,11 +1,20 @@
 export type HeaderMode = "strict" | "sorted";
 
+export type RowData = Record<string, string>;
+
+export type FieldDelta = {
+  from: string;
+  to: string;
+};
+
 export type SampleEvent = {
   type: "added" | "removed" | "changed";
   key?: Record<string, string>;
   rowIndex?: number;
-  before?: Record<string, string>;
-  after?: Record<string, string>;
+  changed?: string[];
+  delta?: Record<string, FieldDelta>;
+  before?: RowData;
+  after?: RowData;
 };
 
 export type DiffSummary = {

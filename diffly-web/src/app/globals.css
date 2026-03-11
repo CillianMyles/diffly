@@ -8,6 +8,10 @@
   --danger: #b42318;
   --ok: #0f766e;
   --border: #e6dfd4;
+  --diff-added-bg: #eef9f1;
+  --diff-added-border: #b7dec1;
+  --diff-removed-bg: #fff1f0;
+  --diff-removed-border: #efc3bf;
 }
 
 * {

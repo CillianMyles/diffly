@@ -4,13 +4,17 @@ import Papa from "papaparse";
 import type {
   CompareRequest,
   DiffSummary,
+  FieldDelta,
   HeaderMode,
+  RowData,
   SampleEvent,
   WorkerMessage,
   WorkerRequest,
 } from "@/lib/protocol";
 
 type CsvRow = string[];
+
+type DeltaMap = Record<string, FieldDelta>;
 
 type RowEntry = {
   rowIndexA: number;
@@ -128,12 +132,97 @@ function keyIndexes(header: string[], keyColumns: string[]): number[] {
   });
 }
 
-function rowToObject(header: string[], row: string[]): Record<string, string> {
-  const out: Record<string, string> = {};
+function rowToObject(header: string[], row: string[]): RowData {
+  const out: RowData = {};
   for (let i = 0; i < header.length; i += 1) {
     out[header[i]] = row[i] ?? "";
   }
   return out;
+}
+
+function parseRowData(value: unknown): RowData | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const out: RowData = {};
+  for (const [key, entry] of Object.entries(value)) {
+    out[key] = typeof entry === "string" ? entry : String(entry ?? "");
+  }
+  return out;
+}
+
+function parseDelta(value: unknown): DeltaMap | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const out: DeltaMap = {};
+  for (const [column, entry] of Object.entries(value)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const typed = entry as { from?: unknown; to?: unknown };
+    out[column] = {
+      from: typeof typed.from === "string" ? typed.from : String(typed.from ?? ""),
+      to: typeof typed.to === "string" ? typed.to : String(typed.to ?? ""),
+    };
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function deriveChangedColumns(before: RowData, after: RowData, preferredColumns?: string[]): string[] {
+  const columns =
+    preferredColumns && preferredColumns.length > 0
+      ? preferredColumns
+      : [...new Set([...Object.keys(before), ...Object.keys(after)])];
+  return columns.filter((column) => (before[column] ?? "") !== (after[column] ?? ""));
+}
+
+function buildDelta(before: RowData, after: RowData, changedColumns: string[]): DeltaMap | undefined {
+  if (changedColumns.length === 0) {
+    return undefined;
+  }
+
+  const out: DeltaMap = {};
+  for (const column of changedColumns) {
+    out[column] = {
+      from: before[column] ?? "",
+      to: after[column] ?? "",
+    };
+  }
+  return out;
+}
+
+function buildChangedSample({
+  key,
+  rowIndex,
+  before,
+  after,
+  changed,
+  delta,
+}: {
+  key?: Record<string, string>;
+  rowIndex?: number;
+  before?: RowData;
+  after?: RowData;
+  changed?: string[];
+  delta?: DeltaMap;
+}): SampleEvent {
+  const nextChanged =
+    changed && changed.length > 0 ? changed : before && after ? deriveChangedColumns(before, after) : undefined;
+  const nextDelta = delta ?? (before && after && nextChanged ? buildDelta(before, after, nextChanged) : undefined);
+
+  return {
+    type: "changed",
+    key,
+    rowIndex,
+    changed: nextChanged,
+    delta: nextDelta,
+    before,
+    after,
+  };
 }
 
 function keyValuesFromRow(
@@ -571,14 +660,32 @@ function extractSummaryAndSamples(
           ? (keyCandidate as Record<string, string>)
           : undefined;
       const rowIndex = typeof event.row_index === "number" ? event.row_index : undefined;
-      const row = event.row as Record<string, string> | undefined;
-      samples.push({
-        type,
-        key,
-        rowIndex,
-        before: (event.before as Record<string, string> | undefined) ?? (type === "removed" ? row : undefined),
-        after: (event.after as Record<string, string> | undefined) ?? (type === "added" ? row : undefined),
-      });
+      const row = parseRowData(event.row);
+      const before = parseRowData(event.before) ?? (type === "removed" ? row : undefined);
+      const after = parseRowData(event.after) ?? (type === "added" ? row : undefined);
+      if (type === "changed") {
+        const changed = Array.isArray(event.changed)
+          ? event.changed.filter((value): value is string => typeof value === "string")
+          : undefined;
+        samples.push(
+          buildChangedSample({
+            key,
+            rowIndex,
+            before,
+            after,
+            changed,
+            delta: parseDelta(event.delta),
+          }),
+        );
+      } else {
+        samples.push({
+          type,
+          key,
+          rowIndex,
+          before,
+          after,
+        });
+      }
     }
   }
 
@@ -767,12 +874,13 @@ async function runStreamingCompareKeyed(
 
       summary.rows_changed += 1;
       if (samples.length < request.maxSampleEvents) {
-        samples.push({
-          type: "changed",
-          key: keyObj,
-          before: entry.rowSample,
-          after: rowToObject(headerB, row),
-        });
+        samples.push(
+          buildChangedSample({
+            key: keyObj,
+            before: entry.rowSample,
+            after: rowToObject(headerB, row),
+          }),
+        );
       }
     },
     onProgress: (cursor) => {
@@ -909,12 +1017,13 @@ async function runStreamingComparePositional(
 
       summary.rows_changed += 1;
       if (samples.length < request.maxSampleEvents) {
-        samples.push({
-          type: "changed",
-          rowIndex,
-          before: rowToObject(headerA, entryA.row),
-          after: rowToObject(headerB, rowB),
-        });
+        samples.push(
+          buildChangedSample({
+            rowIndex,
+            before: rowToObject(headerA, entryA.row),
+            after: rowToObject(headerB, rowB),
+          }),
+        );
       }
     },
     onProgress: (cursor) => {
@@ -1248,12 +1357,13 @@ async function runIndexedDbPartitionedCompare(
 
         summary.rows_changed += 1;
         if (samples.length < request.maxSampleEvents) {
-          samples.push({
-            type: "changed",
-            key: keyObj,
-            before: rowToObject(headerA, entryA.record.row),
-            after: rowToObject(headerB, recordB.row),
-          });
+          samples.push(
+            buildChangedSample({
+              key: keyObj,
+              before: rowToObject(headerA, entryA.record.row),
+              after: rowToObject(headerB, recordB.row),
+            }),
+          );
         }
       }
 

@@ -2,12 +2,13 @@
 
 import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, GitCompareArrows, Loader2, Upload, XCircle } from "lucide-react";
-import type { HeaderMode, ResultMessage, SampleEvent, WorkerMessage } from "@/lib/protocol";
+import type { HeaderMode, ResultMessage, RowData, SampleEvent, WorkerMessage } from "@/lib/protocol";
 
 type CompareState = "idle" | "running" | "done" | "error";
 type CompareStrategy = "positional" | "unordered" | "keyed";
 
 const WASM_SMALL_FILE_THRESHOLD_BYTES = 16 * 1024 * 1024;
+const MAX_INLINE_DIFF_MATRIX_CELLS = 16_000;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) {
@@ -130,33 +131,372 @@ function FilePicker({
   );
 }
 
+type DiffSegment = {
+  kind: "same" | "removed" | "added";
+  value: string;
+};
+
+function sampleIdentity(sample: SampleEvent): string {
+  if (sample.key) {
+    return JSON.stringify(sample.key);
+  }
+  if (sample.rowIndex !== undefined) {
+    return `row_index=${sample.rowIndex}`;
+  }
+  return "unordered row";
+}
+
+function orderedColumns(before?: RowData, after?: RowData): string[] {
+  const seen = new Set<string>();
+  const columns: string[] = [];
+
+  for (const row of [before, after]) {
+    if (!row) {
+      continue;
+    }
+    for (const column of Object.keys(row)) {
+      if (!seen.has(column)) {
+        seen.add(column);
+        columns.push(column);
+      }
+    }
+  }
+
+  return columns;
+}
+
+function tokenizeForInlineDiff(value: string): string[] {
+  const wordTokens = value.match(/\s+|[^\s]+/g);
+  if (wordTokens && wordTokens.length > 1) {
+    return wordTokens;
+  }
+  return Array.from(value);
+}
+
+function pushSegment(target: DiffSegment[], kind: DiffSegment["kind"], value: string) {
+  if (!value) {
+    return;
+  }
+  const prior = target[target.length - 1];
+  if (prior && prior.kind === kind) {
+    prior.value += value;
+    return;
+  }
+  target.push({ kind, value });
+}
+
+function buildBoundarySegments(before: string, after: string): { beforeSegments: DiffSegment[]; afterSegments: DiffSegment[] } {
+  const beforeChars = Array.from(before);
+  const afterChars = Array.from(after);
+
+  let prefix = 0;
+  while (
+    prefix < beforeChars.length &&
+    prefix < afterChars.length &&
+    beforeChars[prefix] === afterChars[prefix]
+  ) {
+    prefix += 1;
+  }
+
+  let beforeSuffix = beforeChars.length - 1;
+  let afterSuffix = afterChars.length - 1;
+  while (beforeSuffix >= prefix && afterSuffix >= prefix && beforeChars[beforeSuffix] === afterChars[afterSuffix]) {
+    beforeSuffix -= 1;
+    afterSuffix -= 1;
+  }
+
+  const beforeSegments: DiffSegment[] = [];
+  const afterSegments: DiffSegment[] = [];
+  pushSegment(beforeSegments, "same", beforeChars.slice(0, prefix).join(""));
+  pushSegment(afterSegments, "same", afterChars.slice(0, prefix).join(""));
+  pushSegment(beforeSegments, "removed", beforeChars.slice(prefix, beforeSuffix + 1).join(""));
+  pushSegment(afterSegments, "added", afterChars.slice(prefix, afterSuffix + 1).join(""));
+  pushSegment(beforeSegments, "same", beforeChars.slice(beforeSuffix + 1).join(""));
+  pushSegment(afterSegments, "same", afterChars.slice(afterSuffix + 1).join(""));
+  return { beforeSegments, afterSegments };
+}
+
+function buildInlineDiff(before: string, after: string): { beforeSegments: DiffSegment[]; afterSegments: DiffSegment[] } {
+  const beforeTokens = tokenizeForInlineDiff(before);
+  const afterTokens = tokenizeForInlineDiff(after);
+
+  if (beforeTokens.length === 0 && afterTokens.length === 0) {
+    return { beforeSegments: [], afterSegments: [] };
+  }
+
+  if (beforeTokens.length * afterTokens.length > MAX_INLINE_DIFF_MATRIX_CELLS) {
+    return buildBoundarySegments(before, after);
+  }
+
+  const dp = Array.from({ length: beforeTokens.length + 1 }, () => new Uint16Array(afterTokens.length + 1));
+  for (let i = 1; i <= beforeTokens.length; i += 1) {
+    for (let j = 1; j <= afterTokens.length; j += 1) {
+      if (beforeTokens[i - 1] === afterTokens[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  const ops: DiffSegment[] = [];
+  let i = beforeTokens.length;
+  let j = afterTokens.length;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && beforeTokens[i - 1] === afterTokens[j - 1]) {
+      ops.push({ kind: "same", value: beforeTokens[i - 1] });
+      i -= 1;
+      j -= 1;
+      continue;
+    }
+    if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.push({ kind: "added", value: afterTokens[j - 1] });
+      j -= 1;
+      continue;
+    }
+    ops.push({ kind: "removed", value: beforeTokens[i - 1] });
+    i -= 1;
+  }
+  ops.reverse();
+
+  const beforeSegments: DiffSegment[] = [];
+  const afterSegments: DiffSegment[] = [];
+  for (const op of ops) {
+    if (op.kind === "same") {
+      pushSegment(beforeSegments, "same", op.value);
+      pushSegment(afterSegments, "same", op.value);
+      continue;
+    }
+    if (op.kind === "removed") {
+      pushSegment(beforeSegments, "removed", op.value);
+      continue;
+    }
+    pushSegment(afterSegments, "added", op.value);
+  }
+
+  return { beforeSegments, afterSegments };
+}
+
+function tone(accent: "added" | "removed") {
+  if (accent === "added") {
+    return {
+      badgeBg: "rgba(15, 118, 110, 0.12)",
+      badgeText: "var(--ok)",
+      panelBg: "var(--diff-added-bg)",
+      panelBorder: "var(--diff-added-border)",
+      changedFieldBg: "rgba(15, 118, 110, 0.16)",
+      inlineBg: "rgba(15, 118, 110, 0.28)",
+    };
+  }
+
+  return {
+    badgeBg: "rgba(180, 35, 24, 0.10)",
+    badgeText: "var(--danger)",
+    panelBg: "var(--diff-removed-bg)",
+    panelBorder: "var(--diff-removed-border)",
+    changedFieldBg: "rgba(180, 35, 24, 0.14)",
+    inlineBg: "rgba(180, 35, 24, 0.24)",
+  };
+}
+
+function InlineValue({
+  value,
+  segments,
+  accent,
+}: {
+  value: string;
+  segments?: DiffSegment[];
+  accent?: "added" | "removed";
+}) {
+  if (value === "") {
+    return <span style={{ opacity: 0.55, fontStyle: "italic" }}>empty</span>;
+  }
+
+  const inlineBg = accent ? tone(accent).inlineBg : undefined;
+  const renderedSegments = segments && segments.length > 0 ? segments : [{ kind: "same" as const, value }];
+  return (
+    <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      {renderedSegments.map((segment, idx) => (
+        <span
+          key={idx}
+          style={
+            segment.kind === "same" || !accent
+              ? undefined
+              : {
+                  background: inlineBg,
+                  borderRadius: 4,
+                  padding: "0 1px",
+                }
+          }
+        >
+          {segment.value}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function FieldList({
+  title,
+  accent,
+  row,
+  changedColumns,
+  inlineSegments,
+}: {
+  title: string;
+  accent: "added" | "removed";
+  row?: RowData;
+  changedColumns: Set<string>;
+  inlineSegments?: Record<string, DiffSegment[]>;
+}) {
+  if (!row) {
+    return null;
+  }
+
+  const colors = tone(accent);
+  return (
+    <div
+      style={{
+        border: `1px solid ${colors.panelBorder}`,
+        borderRadius: 12,
+        background: colors.panelBg,
+        padding: 12,
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          width: "fit-content",
+          borderRadius: 999,
+          background: colors.badgeBg,
+          color: colors.badgeText,
+          padding: "4px 10px",
+          fontSize: 12,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {orderedColumns(row).map((column) => {
+          const isChanged = changedColumns.has(column);
+          return (
+            <div
+              key={column}
+              style={{
+                borderRadius: 10,
+                background: isChanged ? colors.changedFieldBg : "rgba(255,255,255,0.58)",
+                padding: "10px 12px",
+                display: "grid",
+                gap: 6,
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--muted)" }}>
+                {column}
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  lineHeight: 1.45,
+                  fontFamily: 'ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace',
+                }}
+              >
+                <InlineValue value={row[column] ?? ""} segments={inlineSegments?.[column]} accent={isChanged ? accent : undefined} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SampleRow({ sample }: { sample: SampleEvent }) {
-  const identity = sample.key
-    ? JSON.stringify(sample.key)
-    : sample.rowIndex
-      ? `row_index=${sample.rowIndex}`
-      : "unordered row";
+  const identity = sampleIdentity(sample);
+  const changedColumns = new Set(
+    sample.type === "changed"
+      ? sample.changed ?? Object.keys(sample.delta ?? {})
+      : orderedColumns(sample.before, sample.after),
+  );
+
+  const beforeInlineSegments: Record<string, DiffSegment[]> = {};
+  const afterInlineSegments: Record<string, DiffSegment[]> = {};
+  if (sample.type === "changed") {
+    for (const column of changedColumns) {
+      const delta = sample.delta?.[column];
+      const before = delta?.from ?? sample.before?.[column] ?? "";
+      const after = delta?.to ?? sample.after?.[column] ?? "";
+      const inline = buildInlineDiff(before, after);
+      beforeInlineSegments[column] = inline.beforeSegments;
+      afterInlineSegments[column] = inline.afterSegments;
+    }
+  }
+
+  const badgeColors =
+    sample.type === "added"
+      ? tone("added")
+      : sample.type === "removed"
+        ? tone("removed")
+        : undefined;
+
   return (
     <div
       style={{
         border: "1px solid var(--border)",
-        borderRadius: 10,
-        padding: 10,
+        borderRadius: 14,
+        padding: 14,
         background: "#fff",
+        display: "grid",
+        gap: 12,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-        <strong style={{ textTransform: "uppercase", fontSize: 12, letterSpacing: 0.6 }}>{sample.type}</strong>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <strong
+          style={{
+            textTransform: "uppercase",
+            fontSize: 12,
+            letterSpacing: 0.6,
+            padding: "4px 10px",
+            borderRadius: 999,
+            background: badgeColors?.badgeBg ?? "rgba(180, 132, 28, 0.12)",
+            color: badgeColors?.badgeText ?? "var(--brand)",
+          }}
+        >
+          {sample.type}
+        </strong>
         <code style={{ fontSize: 12 }}>{identity}</code>
       </div>
-      {sample.before ? (
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: sample.after ? 8 : 0 }}>
-          before: {JSON.stringify(sample.before)}
+
+      {sample.type === "changed" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+          <FieldList
+            title="Before"
+            accent="removed"
+            row={sample.before}
+            changedColumns={changedColumns}
+            inlineSegments={beforeInlineSegments}
+          />
+          <FieldList
+            title="After"
+            accent="added"
+            row={sample.after}
+            changedColumns={changedColumns}
+            inlineSegments={afterInlineSegments}
+          />
         </div>
-      ) : null}
-      {sample.after ? (
-        <div style={{ fontSize: 12, color: "var(--muted)" }}>after: {JSON.stringify(sample.after)}</div>
-      ) : null}
+      ) : (
+        <FieldList
+          title={sample.type === "added" ? "Added row" : "Removed row"}
+          accent={sample.type === "added" ? "added" : "removed"}
+          row={sample.after ?? sample.before}
+          changedColumns={changedColumns}
+        />
+      )}
     </div>
   );
 }
