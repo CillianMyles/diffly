@@ -9,7 +9,7 @@ use diffly_engine::{
 };
 use serde_json::{json, Value};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum OutputFormat {
     Jsonl,
     Json,
@@ -27,6 +27,7 @@ impl OutputFormat {
     }
 }
 
+#[derive(Debug)]
 struct CliArgs {
     a_path: String,
     b_path: String,
@@ -52,7 +53,7 @@ fn parse_key_csv(value: &str) -> Vec<String> {
         .collect()
 }
 
-fn parse_args() -> Result<CliArgs, String> {
+fn parse_args_from(args: &[String]) -> Result<CliArgs, String> {
     let mut a_path: Option<String> = None;
     let mut b_path: Option<String> = None;
     let mut key_columns: Vec<String> = Vec::new();
@@ -67,7 +68,6 @@ fn parse_args() -> Result<CliArgs, String> {
     let mut ignore_column_order = false;
     let mut ignore_row_order = false;
 
-    let args: Vec<String> = env::args().skip(1).collect();
     let mut i = 0usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -178,6 +178,11 @@ fn parse_args() -> Result<CliArgs, String> {
     })
 }
 
+fn parse_args() -> Result<CliArgs, String> {
+    let args: Vec<String> = env::args().skip(1).collect();
+    parse_args_from(&args)
+}
+
 fn help_text() -> String {
     [
         "Usage:",
@@ -199,6 +204,11 @@ fn help_text() -> String {
         "  --format <mode>            jsonl (default) | json | summary",
         "  --out <path>               Write output to a file instead of stdout",
         "  --pretty                   Pretty-print JSON",
+        "",
+        "Examples:",
+        "  diffly-cli --a a.csv --b b.csv",
+        "  diffly-cli --a a.csv --b b.csv --compare-by-keys id,region",
+        "  diffly-cli --a a.csv --b b.csv --ignore-row-order",
     ]
     .join("\n")
 }
@@ -435,5 +445,59 @@ fn main() {
                 std::process::exit(2);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_args_from, OutputFormat};
+
+    fn as_args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_string()).collect()
+    }
+
+    #[test]
+    fn parse_args_supports_compare_by_keys_shorthand() {
+        let args = parse_args_from(&as_args(&[
+            "--a",
+            "a.csv",
+            "--b",
+            "b.csv",
+            "--compare-by-keys",
+            "id,region",
+        ]))
+        .expect("expected successful parse");
+
+        assert_eq!(args.a_path, "a.csv");
+        assert_eq!(args.b_path, "b.csv");
+        assert_eq!(
+            args.key_columns,
+            vec!["id".to_string(), "region".to_string()]
+        );
+        assert_eq!(args.output_format, OutputFormat::Jsonl);
+    }
+
+    #[test]
+    fn parse_args_reports_help_text() {
+        let err = parse_args_from(&as_args(&["--help"])).expect_err("help should short-circuit");
+
+        assert!(err.contains("Usage:"));
+        assert!(err.contains("Examples:"));
+        assert!(err.contains("--ignore-row-order"));
+    }
+
+    #[test]
+    fn parse_args_rejects_zero_partitions() {
+        let err = parse_args_from(&as_args(&[
+            "--a",
+            "a.csv",
+            "--b",
+            "b.csv",
+            "--partitions",
+            "0",
+        ]))
+        .expect_err("zero partitions should be rejected");
+
+        assert!(err.contains("--partitions must be greater than zero"));
     }
 }

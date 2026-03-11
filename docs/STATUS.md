@@ -135,6 +135,23 @@ Last updated: 2026-03-11
   - worker/protocol now preserve `changed` columns and per-field `delta` metadata across WASM and streaming paths
   - sample events render red/green before/after panels with stronger inline changed-token highlighting
   - added shared diff color tokens in web globals
+- Added contributor onboarding improvements:
+  - new `CONTRIBUTING.md` quickstart and workflow guide
+  - added `.nvmrc` and `.editorconfig`
+  - `README.md` now includes prerequisites and top-level quality-loop commands
+- Added top-level developer workflow commands in `Makefile`:
+  - `make doctor`
+  - `make bootstrap`
+  - `make lint`
+  - `make test`
+  - `make check`
+  - `make web-lint`
+  - `make web-build`
+- Simplified `Makefile` maintenance by centralizing Rust toolchain resolution and adding clearer `KEY`/`KEYS` validation in `make diff` and `make diff-rust`
+- Added CLI regression coverage:
+  - Python subprocess tests for help text, composite key shorthand, and ignore-column-order alias
+  - Rust CLI parser tests for help text, composite key shorthand, and partition argument validation
+- Added web ESLint setup and CI coverage (`make web-lint`)
 
 ## In Progress
 
@@ -155,13 +172,20 @@ Last updated: 2026-03-11
 ## Validation Commands
 
 - `make test-spec`
+- `make test-python`
 - `make test-spec-rust`
 - `make test-spec-rust-engine PARTITIONS=4`
+- `make lint`
+- `make test`
+- `make check`
+- `make web-lint`
 - `make web-typecheck`
 - `npm --prefix diffly-web run build`
 - `npm --prefix diffly-web run typecheck`
+- `make web-build`
 - `firebase deploy --only hosting`
 - GitHub Actions: run `CI` workflow (`push main` or `workflow_dispatch`) and confirm deploy job succeeds
+- `make doctor`
 - `python3 -m compileall diffly-python`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/keyed_basic_add_remove_change/a.csv --b diffly-spec/fixtures/keyed_basic_add_remove_change/b.csv --key id`
 - `python3 diffly-python/diffly.py --a diffly-spec/fixtures/positional_basic_add_remove_change/a.csv --b diffly-spec/fixtures/positional_basic_add_remove_change/b.csv`

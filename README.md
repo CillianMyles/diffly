@@ -22,6 +22,29 @@ The end-state is:
 
 Manual validation guide: `docs/MANUAL_TEST_PLAN.md`
 
+## Quick start
+
+Prerequisites:
+
+- Python 3.12+
+- Rust stable toolchain (`rustup` + `cargo`)
+- Node.js 22 (`.nvmrc` is included)
+- Optional: `wasm-pack` when rebuilding the browser WASM bundle
+
+From repo root:
+
+```bash
+make doctor
+make bootstrap
+make lint
+make test
+make check
+```
+
+`make bootstrap` installs the web app dependencies. `make check` mirrors the main local quality loop: linting, tests, typecheck, and production web build.
+
+For a contributor-focused walkthrough, see `CONTRIBUTING.md`.
+
 ---
 
 ## Why diffly exists
@@ -471,6 +494,7 @@ Install and run:
 
 ```bash
 make web-install
+make web-lint
 make web-dev
 ```
 
@@ -505,6 +529,7 @@ make diff-rust A=a.csv B=b.csv KEY=id NO_PARTITIONS=1
 GitHub Actions now runs on pull requests and pushes to `main`:
 
 - `make test-spec`
+- `make test-python`
 - `python -m compileall diffly-python`
 - a fixture-backed CLI smoke test via `python diffly-python/diffly.py ...`
 - Python smoke coverage for positional default, ignore-row-order, and ignore-column-order
@@ -513,7 +538,7 @@ GitHub Actions now runs on pull requests and pushes to `main`:
 - Rust CLI smoke test via `make diff-rust ...`
 - Rust smoke coverage for positional default, ignore-row-order, and ignore-column-order
 - Rust partitioned CLI smoke test via `make diff-rust ... PARTITIONS=4`
-- Web app typecheck/build (`make web-typecheck` + `npm --prefix diffly-web run build`)
+- Web app lint/typecheck/build (`make web-lint` + `make web-typecheck` + `make web-build`)
 
 ### Project memory
 

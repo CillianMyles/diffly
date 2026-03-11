@@ -13,6 +13,7 @@ Current compare controls:
 
 ```bash
 make web-install
+make web-lint
 make wasm-build-web
 make web-dev
 ```

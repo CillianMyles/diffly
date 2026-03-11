@@ -47,15 +47,20 @@ Use this file to transfer context between sessions/agents with minimal loss.
 - CLI implementation:
   - supports `jsonl` (default), `json`, and `summary` output modes
   - supports `--out <path>` for file output
+  - now has lightweight parser/help regression tests in Rust and Python
+- Contributor ergonomics:
+  - `CONTRIBUTING.md` documents prerequisites, bootstrap, and common workflows
+  - root `Makefile` now exposes `doctor`, `bootstrap`, `lint`, `test`, `check`, `web-lint`, and `web-build`
+  - `diffly-web` now has ESLint wired into both local commands and CI
 
 ## Quick Resume Checklist
 
 1. `git pull origin main`
 2. Read `docs/STATUS.md` and `docs/DECISIONS.md`
-3. Run `make test-spec`
-4. Run `make test-spec-rust`
-5. Run `make web-typecheck`
-6. Run `npm --prefix diffly-web run build`
+3. Run `make doctor`
+4. Run `make lint`
+5. Run `make test`
+6. Run `make check`
 7. If touching rules/instructions:
    - edit `.rulesync/rules/general.md`
    - run `make rules-generate`
@@ -73,8 +78,8 @@ Use this file to transfer context between sessions/agents with minimal loss.
 
 ## Minimum Validation Before Commit
 
-- `make test-spec`
-- `cargo test --manifest-path diffly-rust/Cargo.toml` (when Rust code changes)
+- `make lint`
+- `make test`
 - Any targeted command related to changed files (example: CLI smoke run)
 
 ## If Blocked

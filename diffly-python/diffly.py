@@ -8,7 +8,14 @@ from diffly_python.reference import DiffError, diff_csv_files
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Diff two CSV files and emit JSONL events (positional by default; keyed when keys are provided)."
+        description="Diff two CSV files and emit JSONL events (positional by default; keyed when keys are provided).",
+        epilog=(
+            "Examples:\n"
+            "  diffly.py --a a.csv --b b.csv\n"
+            "  diffly.py --a a.csv --b b.csv --compare-by-keys id,region\n"
+            "  diffly.py --a a.csv --b b.csv --ignore-row-order"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--a", required=True, help="Path to CSV A")
     parser.add_argument("--b", required=True, help="Path to CSV B")
@@ -23,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--compare-by-keys",
         dest="compare_by_keys",
         default="",
-        help="Comma-separated key columns. Shorthand that enables keyed comparison.",
+        help="Comma-separated key columns (for example: id,region). Shorthand that enables keyed comparison.",
     )
     parser.add_argument(
         "--emit-unchanged",
