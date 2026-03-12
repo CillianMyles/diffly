@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-03-11
+Last updated: 2026-03-12
 
 ## Snapshot
 
@@ -164,6 +164,9 @@ Last updated: 2026-03-11
   - changed values now use whole-value emphasis instead of per-character/token diffing
   - short scalar values avoid noisy character-level diff treatment
 - Updated web changed-row labels to use `A` / `B` plus the selected input file names instead of `Before` / `After`
+- Added Rust CLI publishing strategy plan:
+  - `docs/plans/publishing.md` captures recommended rollout order and channel choices
+  - recommends GitHub Releases with prebuilt binaries as canonical, with Homebrew next and npm only as an optional wrapper
 
 ## In Progress
 
