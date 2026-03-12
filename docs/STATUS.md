@@ -155,12 +155,12 @@ Last updated: 2026-03-11
 - Added Rust CLI terminal diff inspector mode:
   - `--format diff` / `FORMAT=diff`
   - changed rows render first and stay labeled as changed
-  - changed columns render with stacked `A` / `B` values instead of a git-style remove/add pair
+  - changed columns render with inline `A | B` comparisons instead of a git-style remove/add pair
   - changed cell values use inline substring emphasis sourced from existing event metadata
   - added/removed rows render as green/red field blocks
 - Simplified web inline diff heuristics for changed cells:
   - field-level red/green emphasis is still the default for all changed cells
-  - inline substring highlighting now only appears for text-like values (whitespace, multiline, or longer text)
+  - changed values now use whole-value emphasis instead of per-character/token diffing
   - short scalar values avoid noisy character-level diff treatment
 - Updated web changed-row labels to use `A` / `B` plus the selected input file names instead of `Before` / `After`
 

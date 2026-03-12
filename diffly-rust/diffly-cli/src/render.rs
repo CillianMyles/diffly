@@ -192,19 +192,10 @@ fn render_changed_event(event: &Value, use_color: bool) -> Vec<String> {
     for column in &changed_columns {
         let before_value = before.map(|row| row_value(row, column)).unwrap_or_default();
         let after_value = after.map(|row| row_value(row, column)).unwrap_or_default();
-        lines.push(render_changed_column_heading(column, use_color));
-        lines.push(render_changed_value_line(
-            "A",
+        lines.push(render_changed_comparison_line(
+            column,
             &before_value,
             &after_value,
-            DiffSide::A,
-            use_color,
-        ));
-        lines.push(render_changed_value_line(
-            "B",
-            &before_value,
-            &after_value,
-            DiffSide::B,
             use_color,
         ));
     }
@@ -335,37 +326,29 @@ fn render_plain_field_line(
     }
 }
 
-fn render_changed_column_heading(column: &str, use_color: bool) -> String {
-    if use_color {
-        format!("  {column}")
-    } else {
-        format!("{column}:")
-    }
-}
-
-fn render_changed_value_line(
-    label: &str,
+fn render_changed_comparison_line(
+    column: &str,
     before_value: &str,
     after_value: &str,
-    side: DiffSide,
     use_color: bool,
 ) -> String {
-    let prefix = format!("  {label}: ");
-    let value = render_changed_value(before_value, after_value, side, use_color);
+    let column_prefix = format!("{column}: ");
+    let a_value = render_changed_value(before_value, after_value, DiffSide::A, use_color);
+    let b_value = render_changed_value(before_value, after_value, DiffSide::B, use_color);
 
     if use_color {
-        let prefix_style = match side {
-            DiffSide::A => ANSI_RED,
-            DiffSide::B => ANSI_GREEN,
-        };
         format!(
-            "{}{}{}",
-            style_text(&prefix, prefix_style, use_color),
-            value,
-            ANSI_RESET
+            "{}{}{}{}{}{}{}",
+            column_prefix,
+            style_text("A: ", ANSI_RED, use_color),
+            a_value,
+            "  |  ",
+            style_text("B: ", ANSI_GREEN, use_color),
+            b_value,
+            ANSI_RESET,
         )
     } else {
-        format!("{prefix}{value}")
+        format!("{column_prefix}A: {a_value}  |  B: {b_value}")
     }
 }
 
@@ -510,9 +493,7 @@ mod tests {
 
         assert!(rendered.contains("Changed Rows (1)"));
         assert!(rendered.contains("[CHANGED key: id=\"3\" | changed: name]"));
-        assert!(rendered.contains("name:"));
-        assert!(rendered.contains("  A: \"Carol\""));
-        assert!(rendered.contains("  B: \"Carol[+ine+]\""));
+        assert!(rendered.contains("name: A: \"Carol\"  |  B: \"Carol[+ine+]\""));
         assert!(rendered.contains("Added Rows (1)"));
         assert!(rendered.contains("[ADDED key: id=\"4\"]"));
         assert!(rendered.contains("+ name: \"Dan\""));

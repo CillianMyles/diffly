@@ -44,11 +44,11 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - sorted-header comparison now uses canonical column signatures in web worker path
   - compare settings now use strategy selector (`positional` / `ignore row order` / `compare by key`) plus `ignore column order` + WASM preference toggles
   - sample rendering now preserves `changed`/`delta` metadata and displays red/green paired `A` / `B` panels for changed rows
-  - inline changed-token emphasis is intentionally conservative in web sample cells and is used only for text-like values
+  - changed web cell values now use whole-value emphasis instead of inline substring/token diffing
   - changed-row panel titles now use `A` / `B` and include the selected file names
 - CLI implementation:
   - supports `jsonl` (default), `json`, `summary`, and `diff` output modes
-  - `diff` mode renders changed rows first and shows changed columns with stacked `A` / `B` values
+  - `diff` mode renders changed rows first and shows changed columns as single-line `A | B` comparisons
   - inline changed-substring emphasis is still used inside the CLI `diff` mode where helpful
   - supports `--out <path>` for file output
   - now has lightweight parser/help regression tests in Rust and Python
