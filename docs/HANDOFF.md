@@ -43,7 +43,8 @@ Use this file to transfer context between sessions/agents with minimal loss.
   - fixed streaming worker hang and blank-line parse mismatch for non-WASM mode
   - sorted-header comparison now uses canonical column signatures in web worker path
   - compare settings now use strategy selector (`positional` / `ignore row order` / `compare by key`) plus `ignore column order` + WASM preference toggles
-  - sample rendering now preserves `changed`/`delta` metadata and displays git-style red/green before/after panels with inline changed-token emphasis
+  - sample rendering now preserves `changed`/`delta` metadata and displays git-style red/green before/after panels
+  - inline changed-token emphasis is intentionally conservative in web sample cells and is used only for text-like values
 - CLI implementation:
   - supports `jsonl` (default), `json`, `summary`, and `diff` output modes
   - `diff` mode renders changed rows first with red/green before/after blocks and inline changed-substring emphasis

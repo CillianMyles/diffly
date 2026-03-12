@@ -157,6 +157,10 @@ Last updated: 2026-03-11
   - changed rows render first with red/green before/after blocks
   - changed cell values use inline substring emphasis sourced from existing event metadata
   - added/removed rows render as green/red field blocks
+- Simplified web inline diff heuristics for changed cells:
+  - field-level red/green emphasis is still the default for all changed cells
+  - inline substring highlighting now only appears for text-like values (whitespace, multiline, or longer text)
+  - short scalar values avoid noisy character-level diff treatment
 
 ## In Progress
 

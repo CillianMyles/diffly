@@ -9,6 +9,7 @@ type CompareStrategy = "positional" | "unordered" | "keyed";
 
 const WASM_SMALL_FILE_THRESHOLD_BYTES = 16 * 1024 * 1024;
 const MAX_INLINE_DIFF_MATRIX_CELLS = 16_000;
+const INLINE_DIFF_MIN_TEXT_LENGTH = 24;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) {
@@ -165,6 +166,22 @@ function orderedColumns(before?: RowData, after?: RowData): string[] {
   return columns;
 }
 
+function looksTextLikeForInlineDiff(before: string, after: string): boolean {
+  if (!before || !after || before === after) {
+    return false;
+  }
+
+  if (before.includes("\n") || after.includes("\n")) {
+    return true;
+  }
+
+  if (/\s/.test(before) || /\s/.test(after)) {
+    return true;
+  }
+
+  return Math.max(before.length, after.length) >= INLINE_DIFF_MIN_TEXT_LENGTH;
+}
+
 function tokenizeForInlineDiff(value: string): string[] {
   const wordTokens = value.match(/\s+|[^\s]+/g);
   if (wordTokens && wordTokens.length > 1) {
@@ -217,6 +234,13 @@ function buildBoundarySegments(before: string, after: string): { beforeSegments:
 }
 
 function buildInlineDiff(before: string, after: string): { beforeSegments: DiffSegment[]; afterSegments: DiffSegment[] } {
+  if (!looksTextLikeForInlineDiff(before, after)) {
+    return {
+      beforeSegments: [{ kind: "same", value: before }],
+      afterSegments: [{ kind: "same", value: after }],
+    };
+  }
+
   const beforeTokens = tokenizeForInlineDiff(before);
   const afterTokens = tokenizeForInlineDiff(after);
 
