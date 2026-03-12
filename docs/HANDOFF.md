@@ -49,6 +49,7 @@ Use this file to transfer context between sessions/agents with minimal loss.
 - CLI implementation:
   - supports `jsonl` (default), `json`, `summary`, and `diff` output modes
   - `diff` mode renders changed rows first and shows changed columns as single-line `A | B` comparisons
+  - changed-column comparison lines align the `|` separator across columns within a changed row
   - inline changed-substring emphasis is still used inside the CLI `diff` mode where helpful
   - supports `--out <path>` for file output
   - now has lightweight parser/help regression tests in Rust and Python

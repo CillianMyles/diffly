@@ -156,6 +156,7 @@ Last updated: 2026-03-11
   - `--format diff` / `FORMAT=diff`
   - changed rows render first and stay labeled as changed
   - changed columns render with inline `A | B` comparisons instead of a git-style remove/add pair
+  - changed-column comparison lines now align the `|` separator across columns within one changed row
   - changed cell values use inline substring emphasis sourced from existing event metadata
   - added/removed rows render as green/red field blocks
 - Simplified web inline diff heuristics for changed cells:

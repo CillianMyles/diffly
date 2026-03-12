@@ -14,6 +14,11 @@ enum DiffSide {
     B,
 }
 
+struct ChangedLayout {
+    column_width: usize,
+    a_width: usize,
+}
+
 pub fn build_diff_report(events: &[Value], use_color: bool) -> String {
     let mut changed_events: Vec<&Value> = Vec::new();
     let mut added_events: Vec<&Value> = Vec::new();
@@ -170,6 +175,7 @@ fn render_changed_event(event: &Value, use_color: bool) -> Vec<String> {
     let changed_columns = changed_columns(event);
     let before = event.get("before");
     let after = event.get("after");
+    let layout = changed_layout(before, after, &changed_columns, use_color);
     let changed_label = if changed_columns.is_empty() {
         "changed: <unknown>".to_string()
     } else {
@@ -196,6 +202,7 @@ fn render_changed_event(event: &Value, use_color: bool) -> Vec<String> {
             column,
             &before_value,
             &after_value,
+            &layout,
             use_color,
         ));
     }
@@ -330,25 +337,74 @@ fn render_changed_comparison_line(
     column: &str,
     before_value: &str,
     after_value: &str,
+    layout: &ChangedLayout,
     use_color: bool,
 ) -> String {
-    let column_prefix = format!("{column}: ");
+    let column_prefix = format!("{column:width$}: ", width = layout.column_width);
     let a_value = render_changed_value(before_value, after_value, DiffSide::A, use_color);
     let b_value = render_changed_value(before_value, after_value, DiffSide::B, use_color);
+    let a_visible_width = changed_value_width(before_value, after_value, DiffSide::A, use_color);
+    let a_padding = " ".repeat(layout.a_width.saturating_sub(a_visible_width));
 
     if use_color {
         format!(
-            "{}{}{}{}{}{}{}",
+            "{}{}{}{}{}{}{}{}",
             column_prefix,
             style_text("A: ", ANSI_RED, use_color),
             a_value,
+            a_padding,
             "  |  ",
             style_text("B: ", ANSI_GREEN, use_color),
             b_value,
             ANSI_RESET,
         )
     } else {
-        format!("{column_prefix}A: {a_value}  |  B: {b_value}")
+        format!("{column_prefix}A: {a_value}{a_padding}  |  B: {b_value}")
+    }
+}
+
+fn changed_layout(
+    before: Option<&Value>,
+    after: Option<&Value>,
+    changed_columns: &[String],
+    use_color: bool,
+) -> ChangedLayout {
+    let mut column_width = 0usize;
+    let mut a_width = 0usize;
+
+    for column in changed_columns {
+        column_width = column_width.max(column.chars().count());
+        let before_value = before.map(|row| row_value(row, column)).unwrap_or_default();
+        let after_value = after.map(|row| row_value(row, column)).unwrap_or_default();
+        a_width = a_width.max(changed_value_width(
+            &before_value,
+            &after_value,
+            DiffSide::A,
+            use_color,
+        ));
+    }
+
+    ChangedLayout {
+        column_width,
+        a_width,
+    }
+}
+
+fn changed_value_width(
+    before_value: &str,
+    after_value: &str,
+    side: DiffSide,
+    use_color: bool,
+) -> usize {
+    if use_color {
+        match side {
+            DiffSide::A => render_plain_value(before_value).chars().count(),
+            DiffSide::B => render_plain_value(after_value).chars().count(),
+        }
+    } else {
+        render_changed_value(before_value, after_value, side, false)
+            .chars()
+            .count()
     }
 }
 
@@ -520,5 +576,33 @@ mod tests {
         let rendered = build_diff_report(&events, false);
         assert!(rendered.contains("No row-level differences."));
         assert!(rendered.contains("rows_changed:        0"));
+    }
+
+    #[test]
+    fn diff_report_aligns_changed_comparison_columns() {
+        let events = diff_csv_bytes(
+            b"id,name,status_text\n1,Al,ready\n",
+            b"id,name,status_text\n1,Alicia,done now\n",
+            &DiffOptions {
+                key_columns: vec!["id".to_string()],
+                header_mode: HeaderMode::Strict,
+                emit_unchanged: false,
+                ignore_row_order: false,
+            },
+        )
+        .expect("diff should succeed");
+
+        let rendered = build_diff_report(&events, false);
+        let lines: Vec<&str> = rendered.lines().collect();
+        let name_line = lines
+            .iter()
+            .find(|line| line.starts_with("name"))
+            .expect("name line should exist");
+        let status_line = lines
+            .iter()
+            .find(|line| line.starts_with("status_text"))
+            .expect("status line should exist");
+
+        assert_eq!(name_line.find("|"), status_line.find("|"));
     }
 }
