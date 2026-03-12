@@ -10,8 +10,8 @@ const ANSI_GREEN_EMPHASIS: &str = "\x1b[32;1;4m";
 
 #[derive(Clone, Copy)]
 enum DiffSide {
-    Before,
-    After,
+    A,
+    B,
 }
 
 pub fn build_diff_report(events: &[Value], use_color: bool) -> String {
@@ -180,53 +180,33 @@ fn render_changed_event(event: &Value, use_color: bool) -> Vec<String> {
         None => format!("@@ {changed_label}"),
     };
 
-    let mut lines = vec![
-        heading,
-        panel_title(
-            "BEFORE",
-            identity.as_deref(),
-            Some(&changed_label),
-            ANSI_RED_HEADER,
-            use_color,
-        ),
-    ];
-
-    if let Some(before_row) = before {
-        for column in &changed_columns {
-            let before_value = row_value(before_row, column);
-            let after_value = after.map(|row| row_value(row, column)).unwrap_or_default();
-            lines.push(render_changed_field_line(
-                '-',
-                column,
-                &before_value,
-                &after_value,
-                DiffSide::Before,
-                use_color,
-            ));
-        }
-    }
-
+    let mut lines = vec![heading];
     lines.push(panel_title(
-        "AFTER",
+        "CHANGED",
         identity.as_deref(),
         Some(&changed_label),
         ANSI_GREEN_HEADER,
         use_color,
     ));
 
-    if let Some(after_row) = after {
-        for column in &changed_columns {
-            let before_value = before.map(|row| row_value(row, column)).unwrap_or_default();
-            let after_value = row_value(after_row, column);
-            lines.push(render_changed_field_line(
-                '+',
-                column,
-                &before_value,
-                &after_value,
-                DiffSide::After,
-                use_color,
-            ));
-        }
+    for column in &changed_columns {
+        let before_value = before.map(|row| row_value(row, column)).unwrap_or_default();
+        let after_value = after.map(|row| row_value(row, column)).unwrap_or_default();
+        lines.push(render_changed_column_heading(column, use_color));
+        lines.push(render_changed_value_line(
+            "A",
+            &before_value,
+            &after_value,
+            DiffSide::A,
+            use_color,
+        ));
+        lines.push(render_changed_value_line(
+            "B",
+            &before_value,
+            &after_value,
+            DiffSide::B,
+            use_color,
+        ));
     }
 
     lines
@@ -355,21 +335,28 @@ fn render_plain_field_line(
     }
 }
 
-fn render_changed_field_line(
-    sign: char,
-    column: &str,
+fn render_changed_column_heading(column: &str, use_color: bool) -> String {
+    if use_color {
+        format!("  {column}")
+    } else {
+        format!("{column}:")
+    }
+}
+
+fn render_changed_value_line(
+    label: &str,
     before_value: &str,
     after_value: &str,
     side: DiffSide,
     use_color: bool,
 ) -> String {
-    let prefix = format!("{sign} {column}: ");
+    let prefix = format!("  {label}: ");
     let value = render_changed_value(before_value, after_value, side, use_color);
 
     if use_color {
         let prefix_style = match side {
-            DiffSide::Before => ANSI_RED,
-            DiffSide::After => ANSI_GREEN,
+            DiffSide::A => ANSI_RED,
+            DiffSide::B => ANSI_GREEN,
         };
         format!(
             "{}{}{}",
@@ -394,7 +381,7 @@ fn render_changed_value(
         split_common_segments(&before_rendered, &after_rendered);
 
     let (prefix, middle, suffix, base_style, emphasis_style, marker) = match side {
-        DiffSide::Before => (
+        DiffSide::A => (
             before_prefix,
             before_mid,
             before_suffix,
@@ -402,7 +389,7 @@ fn render_changed_value(
             ANSI_RED_EMPHASIS,
             ("[-", "-]"),
         ),
-        DiffSide::After => (
+        DiffSide::B => (
             after_prefix,
             after_mid,
             after_suffix,
@@ -522,9 +509,10 @@ mod tests {
         let rendered = build_diff_report(&events, false);
 
         assert!(rendered.contains("Changed Rows (1)"));
-        assert!(rendered.contains("[BEFORE key: id=\"3\" | changed: name]"));
-        assert!(rendered.contains("- name: \"Carol\""));
-        assert!(rendered.contains("+ name: \"Carol[+ine+]\""));
+        assert!(rendered.contains("[CHANGED key: id=\"3\" | changed: name]"));
+        assert!(rendered.contains("name:"));
+        assert!(rendered.contains("  A: \"Carol\""));
+        assert!(rendered.contains("  B: \"Carol[+ine+]\""));
         assert!(rendered.contains("Added Rows (1)"));
         assert!(rendered.contains("[ADDED key: id=\"4\"]"));
         assert!(rendered.contains("+ name: \"Dan\""));

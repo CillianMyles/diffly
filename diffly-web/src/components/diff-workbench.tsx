@@ -360,6 +360,10 @@ function InlineValue({
   );
 }
 
+function sourceLabel(side: "A" | "B", file: File | null): string {
+  return file ? `${side} - ${file.name}` : side;
+}
+
 function FieldList({
   title,
   accent,
@@ -440,7 +444,15 @@ function FieldList({
   );
 }
 
-function SampleRow({ sample }: { sample: SampleEvent }) {
+function SampleRow({
+  sample,
+  fileA,
+  fileB,
+}: {
+  sample: SampleEvent;
+  fileA: File | null;
+  fileB: File | null;
+}) {
   const identity = sampleIdentity(sample);
   const changedColumns = new Set(
     sample.type === "changed"
@@ -499,14 +511,14 @@ function SampleRow({ sample }: { sample: SampleEvent }) {
       {sample.type === "changed" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
           <FieldList
-            title="Before"
+            title={sourceLabel("A", fileA)}
             accent="removed"
             row={sample.before}
             changedColumns={changedColumns}
             inlineSegments={beforeInlineSegments}
           />
           <FieldList
-            title="After"
+            title={sourceLabel("B", fileB)}
             accent="added"
             row={sample.after}
             changedColumns={changedColumns}
@@ -515,7 +527,7 @@ function SampleRow({ sample }: { sample: SampleEvent }) {
         </div>
       ) : (
         <FieldList
-          title={sample.type === "added" ? "Added row" : "Removed row"}
+          title={sample.type === "added" ? sourceLabel("B", fileB) : sourceLabel("A", fileA)}
           accent={sample.type === "added" ? "added" : "removed"}
           row={sample.after ?? sample.before}
           changedColumns={changedColumns}
@@ -854,7 +866,11 @@ export function DiffWorkbench() {
           }}
         >
           <h2 style={{ margin: 0, fontSize: 20 }}>Sample events ({samples.length})</h2>
-          <div style={{ display: "grid", gap: 8 }}>{samples.map((sample, idx) => <SampleRow key={idx} sample={sample} />)}</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {samples.map((sample, idx) => (
+              <SampleRow key={idx} sample={sample} fileA={fileA} fileB={fileB} />
+            ))}
+          </div>
         </div>
       ) : null}
 

@@ -242,7 +242,7 @@ NO_COLOR=1 make diff-rust \
 ```
 Expected:
 - changed rows are listed before added/removed rows
-- changed entries show separate before/after blocks
+- changed entries stay labeled as changed and show stacked `A` / `B` values per changed column
 - changed cells include inline substring markers such as `[+ine+]` when color is disabled
 - added rows render as `+` blocks and removed rows render as `-` blocks
 

@@ -470,7 +470,7 @@ make diff-rust A=a.csv B=b.csv FORMAT=json OUT=/tmp/diff.json
 
 `FORMAT=diff` is a human-only terminal view. It keeps `jsonl`/`json` unchanged and renders:
 - changed rows first
-- red `before` and green `after` blocks
+- changed columns with stacked `A` and `B` values
 - field-level emphasis using existing `changed` / `before` / `after` / `delta` event data
 - inline substring markers for changed cell values when color is disabled
 
